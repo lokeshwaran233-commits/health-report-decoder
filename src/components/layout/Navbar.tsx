@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { Menu, X } from "lucide-react";
-import { Button } from "@/components/ui/Button";
+import { Button } from "@/components/rx/Button";
 import { cn } from "@/lib/utils";
 
 function Logo() {

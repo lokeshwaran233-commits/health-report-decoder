@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
 import { ArrowRight, CheckCircle2, FileText, Image as ImageIcon, Trash2 } from "lucide-react";
-import { Button } from "@/components/ui/Button";
+import { Button } from "@/components/rx/Button";
 import { formatFileSize } from "@/lib/validators";
 
 export interface FilePreviewProps {

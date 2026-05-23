@@ -1,5 +1,5 @@
 import { Link, useRouter } from "@tanstack/react-router";
-import { Button } from "@/components/ui/Button";
+import { Button } from "@/components/rx/Button";
 
 export interface ErrorBoundaryProps {
   error: Error;

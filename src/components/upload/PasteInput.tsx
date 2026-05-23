@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Button } from "@/components/ui/Button";
+import { Button } from "@/components/rx/Button";
 
 const MAX_CHARS = 5000;
 const MIN_CHARS = 50;

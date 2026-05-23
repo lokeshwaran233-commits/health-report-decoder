@@ -1,7 +1,7 @@
 import { useRef, type DragEvent, type KeyboardEvent } from "react";
 import { Upload } from "lucide-react";
-import { Button } from "@/components/ui/Button";
-import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/rx/Button";
+import { Badge } from "@/components/rx/Badge";
 import { cn } from "@/lib/utils";
 
 export interface DropZoneProps {

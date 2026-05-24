@@ -1,117 +1,132 @@
-# ReportRx — Day 1 (Approved with 4 additions)
 
-Adapt to existing TanStack Start + Tailwind v4 + Cloudflare Workers stack. Functionally identical to the brief; routing and AI call path differ.
+# ReportRx — Mega Plan (Day 1 polish + Day 2 + all gap fixes)
 
-## Pre-flight (done)
-- `framer-motion` and `pdfjs-dist` installed.
-- `lucide-react@0.575.0` confirmed in `package.json`.
-- `LOVABLE_API_KEY` confirmed provisioned (Day 2 AI Gateway).
+This is a large single-shot build. Scope is locked to what's listed below.
+The sample-report button will load a **pre-baked AnalysisResult** (no AI call,
+no credits), as you confirmed.
 
-## Stack mapping
+## 1. Title + head metadata fixes
 
-| Spec | Implementation | Reason |
-|---|---|---|
-| Vite + React Router v6 | TanStack Start file routes (`src/routes/index.tsx`, `results.tsx`, `history.tsx`) | Already scaffolded |
-| Tailwind v3 config | Tailwind v4 `@theme` tokens in `src/styles.css` | v4 installed; same class names |
-| Netlify/Vercel `/api/analyze` + Anthropic SDK | TanStack server fn → Lovable AI Gateway (Gemini) | No key needed; Workers-safe |
-| `react-router-dom` location.state | `@tanstack/react-router` `useNavigate` + `src/lib/uploadStore.ts` module store | Same UX |
-| framer-motion | Direct equivalent | — |
+- `src/routes/__root.tsx`: title → `ReportRx — Your lab report, finally explained`.
+- `src/routes/index.tsx`: leaf head with route-specific title/description, og:title, og:description, og:image (placeholder `/og-default.png`), `twitter:card=summary_large_image`, `canonical=/`.
+- `src/routes/results.tsx`: head with `Your Results — ReportRx`, description, `<meta name="robots" content="noindex">`.
+- `src/routes/history.tsx`: head with title + `noindex`.
+- Add favicon: `public/favicon.svg` (teal circle + crosshair/pulse mark), link in root head.
 
-## Addition 1 — Browser-only PDF extraction
-`src/lib/pdfExtract.ts` carries a header comment: **BROWSER-ONLY. Never import from a server function, server route, or Cloudflare Worker context.** Both `extractTextFromPDF` and `extractTextFromImage` guard with `typeof window === "undefined"` and throw early. Consumed only by `useFileUpload` (client hook).
+## 2. Landing page polish (Day 1 items 1–8)
 
-## Addition 2 — lucide-react confirmed
-Already at `^0.575.0` in `package.json`. No install needed.
+Files: `src/pages/LandingPage.tsx`, `src/components/layout/Navbar.tsx`,
+`src/components/upload/DropZone.tsx`, `src/components/upload/UploadCard.tsx`,
+new `src/components/landing/HeroPreviewCard.tsx`,
+new `src/components/landing/HowItWorks.tsx` (icon-forward cards: Upload, Cpu, Activity, Stethoscope; dashed connectors),
+new `src/components/landing/ResultsTeaser.tsx` (renders the real `BiomarkerCard` with `isTeaser` prop on 3 mock biomarkers, scaled 90%, pointer-events:none),
+new `src/components/landing/ScrollReveal.tsx` wrapper (Framer Motion `whileInView`, 400ms, 20px slide-up, 80ms stagger, `viewport={{ once: true }}`, respects `prefers-reduced-motion`).
 
-## Addition 3 — Day 2 Gemini normalization layer (noted)
-`src/lib/analyze.functions.ts` ships today as a typed stub returning `{ status: 'not_implemented' }`. Day 2 will:
-1. POST to `https://ai.gateway.lovable.dev/v1/chat/completions` with `google/gemini-3-flash-preview` (default) using `LOVABLE_API_KEY`.
-2. Use tool-calling (`tool_choice` forced) with a JSON-schema mirroring `AnalysisResult`.
-3. Add `src/lib/normalizeAnalysis.ts` — a normalization layer mapping Gemini's tool-call arguments (string `status` values, partial fields, missing categories) into the strict `AnalysisResult` / `Biomarker` interfaces, with safe defaults for any field the model omits or mis-types.
+Hero: 2-column on ≥lg; right column = floating preview card with translateY ±8px / 3s ease loop.
+DropZone: light teal tint `rgba(15,110,86,0.06)`, dashed `#1D9E75` 1.5px, upload icon pulse 1.0→1.08→1.0 2s, hover transitions border→solid + tint deepens (200ms).
+Navbar: `backdrop-blur-md` + semi-transparent white, 1px bottom border applied only after scroll>50px via `useEffect` scroll listener and `scrolled` class.
+Below upload card: muted hint `"Your data never leaves your device during extraction — we only send text to our AI."`.
 
-## Addition 4 — ErrorBoundary in __root.tsx
-Replace the current `errorComponent` with a branded `<ErrorBoundary />` component that wraps the routed `<Outlet />`. Fallback UI shows:
-- The ReportRx logo (teal pulse mark + wordmark)
-- Heading: "Something went wrong"
-- The error message (truncated, monospace)
-- Primary "Return to home" button (`<Link to="/">`) using the brand-teal `Button` primitive
-- Secondary "Try again" ghost button that calls `router.invalidate()` + `reset()`
-Lives at `src/components/layout/ErrorBoundary.tsx`. Wired into `__root.tsx` as `errorComponent: ErrorBoundary` (route-level boundary already wraps `<Outlet/>` by design in TanStack Router).
+## 3. File upload pipeline (typed image + text)
 
-## Design tokens (`src/styles.css`)
-
-`@theme inline` block adds:
+Update `src/types/report.ts` to add:
+```ts
+export type AnalyzeInput =
+  | { type: 'text'; content: string }
+  | { type: 'image'; content: string; mimeType: string };
 ```
---color-brand-teal #0F6E56   --color-brand-teal-light #E1F5EE   --color-brand-teal-mid #1D9E75
---color-brand-amber #EF9F27  --color-brand-amber-light #FAEEDA
---color-brand-coral #D85A30  --color-brand-coral-light #FAECE7
---color-brand-dark #1a1a18   --color-brand-muted #73726c        --color-brand-hint #B4B2A9
---color-brand-border #E5E5E3 --color-brand-surface #FAFAF8      --color-brand-card #FFFFFF
---font-sans 'Inter', system-ui, sans-serif
---radius-card 12px  --radius-btn 8px  --radius-pill 999px
---shadow-card 0 1px 3px rgba(0,0,0,.06)  --shadow-focus 0 0 0 3px rgba(15,110,86,.2)
+- `src/lib/pdfExtract.ts`: convert `pdfjs-dist` import to dynamic `await import('pdfjs-dist')` inside the function; worker URL pinned `//unpkg.com/pdfjs-dist@5.4.149/build/pdf.worker.min.mjs` (exact installed version).
+- `extractImageBase64(file)` helper returns `{ base64, mimeType }` (strip `data:...;base64,` prefix).
+- `src/lib/uploadStore.ts`: replace payload with `{ input: AnalyzeInput, fileMeta, receivedAt }` + `setInput`, `setFileMeta`, `clear`, plus `setLastResult`, `getLastResult`, `getHistory`, `clearHistory`, `deleteHistoryItem`. All localStorage ops wrapped in try/catch under key `reportrx_history` (max 20, newest first).
+- `src/hooks/useFileUpload.ts`: PDF → text input; image → base64 image input; paste → text input; sample → loads pre-baked result directly via `setLastResult` + a `sampleMode` flag in uploadStore so `/results` short-circuits straight to success. Paste button disabled when `<50` chars with live counter (already present — verify). `handlePasteText` navigates to `/results`.
+
+## 4. Server function — real Gemini call
+
+`src/lib/analyze.functions.ts`:
+- Input zod: discriminated union `{ type:'text', content:string(20..50000) }` | `{ type:'image', content:string, mimeType:string }`.
+- POST `https://ai.gateway.lovable.dev/v1/chat/completions`, model `google/gemini-2.5-flash`, temp 0.1, max_tokens 4000, `Authorization: Bearer ${process.env.LOVABLE_API_KEY}`.
+- System prompt as specified.
+- For image input: user message uses content-parts array with `image_url` + text.
+- Parse: try `JSON.parse`, fall back to `/{[\s\S]*}/` regex extraction.
+- Typed errors: `PARSE_ERROR`, `NO_DATA_FOUND`, `API_ERROR`, plus surface 429/402 with friendly messages.
+- `normalizeAnalysisResult(raw)` in `src/lib/normalizeAnalysis.ts`: adds `id` (timestamp+random), `uploadedAt` ISO, clamps numbers to 4 decimals, clamps status enum, returns typed `AnalysisResult`.
+
+Ensure `LOVABLE_API_KEY` exists (will run `ai_gateway--create` in build mode).
+
+## 5. Pre-baked sample
+
+`src/lib/sampleResult.ts` — full `AnalysisResult` for Priya Sharma CBC+LFT (Hb flagged, MCV low, TSH watch, Vit D flagged, ALT/AST normal, etc.), realistic metadata, 3-paragraph summary, 5 doctor questions. Used by sample button (instant) and consumable in shared-link fallback testing.
+
+## 6. `useReportAnalysis` hook
+
+`src/hooks/useReportAnalysis.ts`:
+- State: `analysisResult`, `analysisState`, `error`, `activeCategory`, `setActiveCategory`, `filteredBiomarkers` (memo, sort flagged→watch→normal when 'all'), `statusCounts` (memo), `runAnalysis(input)`, `retry()`.
+- On mount in ResultsPage: if `?share=` → decode-only render path (no analyze). Else if `sampleMode` → load pre-baked. Else read `input` from store → `runAnalysis`. Else → toast + `navigate('/')`.
+- `useEffect` updates `document.title` based on `metadata.patientName`; cleanup resets to brand default.
+- On success: `uploadStore.setLastResult(result)` (writes localStorage history).
+
+## 7. Loading screen
+
+`src/components/results/LoadingScreen.tsx`: logo 32px, 3 steps (FileSearch/FlaskConical/Sparkles) lighting up at 0/2/4s, teal spinner active / green check complete / gray pending dot, thin teal progress bar 0→100% linear over 6s, rotating tips cycle 3s with fade. Respects reduced motion.
+
+## 8. Results dashboard components
+
+All under `src/components/results/`:
+
+- `HealthScoreCard.tsx` — Recharts donut (green/amber/coral), center count + label, stat rows, first-sentence italic quote from summary, slide-in + animated donut.
+- `ResultsHeader.tsx` — patient/date/lab metadata bar, status pills row (colored dot + count + label), action buttons (Share, Download PDF, Analyse another).
+- `CategoryFilterBar.tsx` — horizontal scroll pills, hide empty categories, active=solid teal.
+- `BiomarkerCard.tsx` — full spec: status badge top-right, category pill top-left, value+unit, gauge bar with normal-zone highlight, animated marker with `ease: [0.34,1.56,0.64,1]` 800ms, low/value/high labels, plain English, expand → deep explanation with teal-light left border. `isTeaser` prop disables expand/hover/pointer events. Status-colored 3px left border + tint. Hover lift 2px + shadow. `role="img"` aria-label as specified.
+- `BiomarkerGrid.tsx` — 2-col desktop / 1-col mobile, staggered fade-in 60ms, `AnimatePresence mode="wait"` on filter change, single-expand state lifted here, empty state with `SearchX`.
+- `InsightsSection.tsx` — Summary card (left border teal-light, paragraphs split on `\n\n`, first sentence bolded), Doctor questions list (numbered teal badges, per-row Copy button with toast, "Copy all questions" bottom).
+- `ShareModal.tsx` — faux-viewport overlay, scale-in, copy shareable link, WhatsApp share. Encoding uses unicode-safe helpers:
+  ```ts
+  const encode = d => btoa(unescape(encodeURIComponent(JSON.stringify(d))));
+  const decode = s => JSON.parse(decodeURIComponent(escape(atob(s))));
+  ```
+  WhatsApp text wrapped in `encodeURIComponent`. role=dialog, aria-modal, focus trap, Esc close.
+- `SavedBanner.tsx` — green dismissible "saved to history" banner, auto-dismisses 5s, session flag in `sessionStorage`.
+- `DisclaimerBanner.tsx`, error state, shared-view banner.
+
+`src/routes/results.tsx` orchestrates loading / error / success / shared-view states and renders in spec order: SavedBanner → HealthScoreCard → ResultsHeader → CategoryFilterBar → BiomarkerGrid → divider → InsightsSection → DisclaimerBanner → "Analyse another report" CTA (calls `uploadStore.clear()` + resets `document.title` before navigating).
+
+## 9. PDF download via window.print
+
+`src/lib/pdfSummary.ts` — builds a hidden `#print-target` DOM tree with logo, metadata, status counts, biomarker rows (text only), summary paragraphs, doctor questions; calls `window.print()`; cleans up after.
+Print CSS lives **globally** in `src/styles.css`:
+```css
+@media print {
+  body * { visibility: hidden; }
+  #print-target, #print-target * { visibility: visible; }
+  #print-target { position: absolute; inset: 0; color: #000; background: #fff; font-family: Inter, sans-serif; }
+}
 ```
-Inter loaded via Google Fonts `@import` at top. Global `*:focus-visible` uses `--shadow-focus`.
 
-## Files
+## 10. Toast system
 
-```
-src/styles.css                                  (update: tokens + Inter)
-src/routes/__root.tsx                           (update: <Navbar/>, <main><Outlet/></main>, ErrorBoundary, head meta)
-src/routes/index.tsx                            (replace placeholder → LandingPage)
-src/routes/results.tsx                          (scaffold)
-src/routes/history.tsx                          (scaffold)
+- `src/components/ui/Toast.tsx`, `src/hooks/useToast.ts`, `ToastContainer` mounted in `__root.tsx` (fixed bottom-right desktop / bottom-center mobile). Framer Motion slide-up enter, fade exit, 3s auto-dismiss. Replace all inline "Copied!" tooltips with `showToast(...)`.
+  Note: project already exports `sonner` per `<shadcn-toast>` knowledge — I'll wrap `sonner` rather than reinvent if `<Toaster />` is already in root; otherwise build the bespoke one as specified. (Spec says build custom — will build custom for full control.)
 
-src/types/report.ts                             (Biomarker, AnalysisResult, UploadState …)
+## 11. ErrorBoundary + a11y + reduced motion
 
-src/lib/validators.ts                           (validateFile, ALLOWED_TYPES, MAX_FILE_SIZE_MB, formatFileSize)
-src/lib/sampleReport.ts                         (Thyrocare/Priya Sharma SAMPLE_REPORT_TEXT)
-src/lib/pdfExtract.ts                           (BROWSER-ONLY; pdfjs-dist + image→dataURL)
-src/lib/uploadStore.ts                          (module-level handoff store)
-src/lib/analyze.functions.ts                    (typed stub server fn)
-src/lib/normalizeAnalysis.ts                    (Day 2 — placeholder file with TODO header)
+- Verify ErrorBoundary present in `__root.tsx` (it is).
+- Helper `useReducedMotion()` (Framer Motion's built-in) gates all animation durations to 0 when set.
+- All new components: named + default exports, zero `any`, no `console.log`.
 
-src/hooks/useFileUpload.ts                      (validate → extract → store → navigate('/results'))
-src/hooks/useReportAnalysis.ts                  (typed stub)
+## 12. Technical details summary
 
-src/components/ui/Button.tsx                    (variants: primary/secondary/ghost; sizes sm/md/lg; isLoading)
-src/components/ui/Badge.tsx                     (normal/watch/flagged/neutral)
-src/components/ui/Card.tsx
-src/components/ui/Tabs.tsx                      (controlled pill switcher)
+- `package.json`: confirm `recharts`, `framer-motion`, `lucide-react`, `pdfjs-dist@5.x` already installed. Add nothing else.
+- No new server routes. No DB. Pure client + one server function.
+- Cloudflare-safe: `pdfjs-dist` stays browser-only (dynamic import, no SSR usage); server function uses only `fetch` + `process.env.LOVABLE_API_KEY`.
+- Strict TS: every new file fully typed against `src/types/report.ts`.
 
-src/components/layout/Navbar.tsx                (fixed top, mobile hamburger, smooth scroll #how-it-works)
-src/components/layout/Footer.tsx                (dark, disclaimer)
-src/components/layout/PageWrapper.tsx           (AnimatePresence fade-in, pt-[56px])
-src/components/layout/ErrorBoundary.tsx         (Addition 4)
+## Out of scope (explicit)
 
-src/components/upload/UploadCard.tsx            (two tabs, drag/drop orchestration, errors)
-src/components/upload/DropZone.tsx              (role=button, keyboard Enter/Space, drag visual states)
-src/components/upload/FilePreview.tsx           (file meta, Analyze CTA, Remove ghost)
-src/components/upload/PasteInput.tsx            (textarea + live count + Analyze disabled <50 chars)
+- History page UI (Day 3) — only the persistence layer + read API are built now.
+- Real OG image generation — placeholder path only.
+- Auth / multi-device sync — none.
 
-src/pages/LandingPage.tsx                       (Hero → UploadCard → TrustBar → HowItWorks → SocialProof)
-```
+## Risks I'm accepting per your "mega-plan" choice
 
-## Landing page sections (exact spec)
-A. Hero — animated trust badge, two-line H1 ("explained" in teal), subhead, no CTA  
-B. UploadCard — two tabs, drag/drop, FilePreview, sample-report link, inline error states  
-C. Trust bar — 3 inline items, teal icons  
-D. How it works — 4-step stepper, horizontal desktop / vertical mobile, arrow connectors  
-E. Social proof line — "Powered by Claude AI — the same technology trusted by leading healthcare researchers worldwide."  
-Footer — dark `#1a1a18`, © + disclaimer + Privacy/Terms.
-
-## Quality bar
-- Strict TS, zero `any`, all props interfaces exported.
-- Single `<main>` in `__root.tsx`.
-- All icons `aria-hidden` or `aria-label`; drop zone `role="button"` + Enter/Space; errors `role="alert"` `aria-live="polite"`.
-- 44×44 min tap targets; 3px teal `*:focus-visible` ring.
-- Per-route `head()` (title + description + og:title + og:description).
-- No `console.log`, no TODO comments, no placeholder boilerplate.
-- Mobile-first; tested mentally at 375px (Navbar hamburger, hero 30px, stacked stepper, stacked trust bar).
-
-## Out of scope (Day 1)
-- `/results` and `/history` page bodies (scaffolded empty per spec).
-- Real Gemini call (stub returns typed shape).
-- History persistence (Day 3).
-
-Switch to build mode to execute.
+- Single delivery this large will have rough edges; expect a follow-up round to fix any TypeScript errors, missing imports, or layout misses surfaced by the build.
+- The pre-baked sample replaces the spec's "real AI call on sample" — sample button will never hit the gateway.

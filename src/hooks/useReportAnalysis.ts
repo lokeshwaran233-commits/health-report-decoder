@@ -1,35 +1,126 @@
-import { useState } from "react";
-import type { AnalysisResult } from "@/types/report";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
+import { analyzeReport } from "@/lib/analyze.functions";
+import { uploadStore } from "@/lib/uploadStore";
+import type {
+  AnalysisError,
+  AnalysisResult,
+  AnalyzeInput,
+  Biomarker,
+  BiomarkerCategory,
+} from "@/types/report";
+
+export type AnalysisState = "idle" | "loading" | "success" | "error";
+export type CategoryFilter = BiomarkerCategory | "all";
 
 export interface UseReportAnalysisReturn {
-  result: AnalysisResult | null;
-  isAnalyzing: boolean;
-  error: string | null;
-  analyze: (text: string) => Promise<void>;
-  reset: () => void;
+  analysisResult: AnalysisResult | null;
+  analysisState: AnalysisState;
+  error: AnalysisError | null;
+  activeCategory: CategoryFilter;
+  setActiveCategory: (cat: CategoryFilter) => void;
+  filteredBiomarkers: Biomarker[];
+  statusCounts: { normal: number; watch: number; flagged: number };
+  runAnalysis: (input: AnalyzeInput) => Promise<void>;
+  retry: () => void;
+  loadResult: (result: AnalysisResult) => void;
 }
 
-/**
- * Stub for Day 2. Provides a stable typed surface that components can
- * compile against today; the real implementation will wire to
- * analyzeReport + normalizeAnalysis.
- */
+const STATUS_ORDER: Record<Biomarker["status"], number> = {
+  flagged: 0,
+  watch: 1,
+  normal: 2,
+};
+
 export function useReportAnalysis(): UseReportAnalysisReturn {
-  const [result, setResult] = useState<AnalysisResult | null>(null);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const analyzeFn = useServerFn(analyzeReport);
+  const [analysisResult, setResult] = useState<AnalysisResult | null>(null);
+  const [analysisState, setState] = useState<AnalysisState>("idle");
+  const [error, setError] = useState<AnalysisError | null>(null);
+  const [activeCategory, setActiveCategory] = useState<CategoryFilter>("all");
+  const [lastInput, setLastInput] = useState<AnalyzeInput | null>(null);
 
-  const analyze = async (_text: string): Promise<void> => {
-    setIsAnalyzing(true);
+  const runAnalysis = useCallback(
+    async (input: AnalyzeInput) => {
+      setLastInput(input);
+      setState("loading");
+      setError(null);
+      try {
+        const result = (await analyzeFn({ data: input })) as AnalysisResult;
+        setResult(result);
+        uploadStore.setLastResult(result);
+        setState("success");
+      } catch (e) {
+        const code =
+          e && typeof e === "object" && "code" in e
+            ? (e as AnalysisError).code
+            : "API_ERROR";
+        const message =
+          e instanceof Error
+            ? e.message
+            : "Something went wrong. Please try again.";
+        setError({ code, message });
+        setState("error");
+      }
+    },
+    [analyzeFn],
+  );
+
+  const loadResult = useCallback((result: AnalysisResult) => {
+    setResult(result);
+    uploadStore.setLastResult(result);
+    setState("success");
     setError(null);
-    setIsAnalyzing(false);
-  };
+  }, []);
 
-  const reset = (): void => {
-    setResult(null);
-    setError(null);
-    setIsAnalyzing(false);
-  };
+  const retry = useCallback(() => {
+    if (lastInput) void runAnalysis(lastInput);
+  }, [lastInput, runAnalysis]);
 
-  return { result, isAnalyzing, error, analyze, reset };
+  const statusCounts = useMemo(() => {
+    const counts = { normal: 0, watch: 0, flagged: 0 };
+    if (analysisResult) {
+      for (const b of analysisResult.biomarkers) counts[b.status] += 1;
+    }
+    return counts;
+  }, [analysisResult]);
+
+  const filteredBiomarkers = useMemo(() => {
+    if (!analysisResult) return [];
+    const list =
+      activeCategory === "all"
+        ? [...analysisResult.biomarkers].sort(
+            (a, b) => STATUS_ORDER[a.status] - STATUS_ORDER[b.status],
+          )
+        : analysisResult.biomarkers.filter((b) => b.category === activeCategory);
+    return list;
+  }, [analysisResult, activeCategory]);
+
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    const name = analysisResult?.metadata.patientName;
+    if (name) {
+      document.title = `${name}'s Results — ReportRx`;
+    } else if (analysisResult) {
+      document.title = "Your Results — ReportRx";
+    }
+    return () => {
+      document.title = "ReportRx — Your lab report, finally explained";
+    };
+  }, [analysisResult]);
+
+  return {
+    analysisResult,
+    analysisState,
+    error,
+    activeCategory,
+    setActiveCategory,
+    filteredBiomarkers,
+    statusCounts,
+    runAnalysis,
+    retry,
+    loadResult,
+  };
 }
+
+export default useReportAnalysis;

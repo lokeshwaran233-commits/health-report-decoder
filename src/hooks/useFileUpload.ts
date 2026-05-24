@@ -1,12 +1,9 @@
 import { useCallback, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
-import {
-  extractTextFromImage,
-  extractTextFromPDF,
-} from "@/lib/pdfExtract";
-import { SAMPLE_REPORT_TEXT } from "@/lib/sampleReport";
-import { setUploadPayload } from "@/lib/uploadStore";
+import { extractImageBase64, extractTextFromPDF } from "@/lib/pdfExtract";
+import { uploadStore } from "@/lib/uploadStore";
 import { validateFile } from "@/lib/validators";
+import { buildSampleResult } from "@/lib/sampleResult";
 import type { UploadState } from "@/types/report";
 
 export interface UseFileUploadReturn {
@@ -21,6 +18,7 @@ export interface UseFileUploadReturn {
 }
 
 const INITIAL_STATE: UploadState = { status: "idle" };
+const MIN_PASTE_CHARS = 50;
 
 export function useFileUpload(): UseFileUploadReturn {
   const navigate = useNavigate();
@@ -45,25 +43,22 @@ export function useFileUpload(): UseFileUploadReturn {
       }
 
       setUploadState({ status: "extracting", file });
-
       try {
         const isPdf = file.type === "application/pdf";
-        const extractedText = isPdf
-          ? await extractTextFromPDF(file)
-          : await extractTextFromImage(file);
-
-        setUploadPayload({
-          status: "done",
-          extractedText,
-          source: isPdf ? "pdf" : "image",
-          fileName: file.name,
-          fileSize: file.size,
-          mimeType: file.type,
-          imageDataUrl: isPdf ? undefined : extractedText,
-          receivedAt: Date.now(),
-        });
-
-        setUploadState({ status: "done", file, extractedText });
+        if (isPdf) {
+          const text = await extractTextFromPDF(file);
+          uploadStore.setInput(
+            { type: "text", content: text },
+            { name: file.name, size: file.size, type: file.type },
+          );
+        } else {
+          const { base64, mimeType } = await extractImageBase64(file);
+          uploadStore.setInput(
+            { type: "image", content: base64, mimeType },
+            { name: file.name, size: file.size, type: file.type },
+          );
+        }
+        setUploadState({ status: "done", file });
         await navigate({ to: "/results" });
       } catch (err) {
         const message =
@@ -97,19 +92,17 @@ export function useFileUpload(): UseFileUploadReturn {
   const handlePasteText = useCallback(
     (text: string) => {
       const trimmed = text.trim();
-      if (trimmed.length < 50) {
+      if (trimmed.length < MIN_PASTE_CHARS) {
         setUploadState({
           status: "error",
-          error: "Please paste at least 50 characters of report text.",
+          error: `Please paste at least ${MIN_PASTE_CHARS} characters of report text.`,
         });
         return;
       }
-      setUploadPayload({
-        status: "done",
-        extractedText: trimmed,
-        source: "text",
-        receivedAt: Date.now(),
-      });
+      uploadStore.setInput(
+        { type: "text", content: trimmed },
+        { name: "Pasted report", size: trimmed.length, type: "text/plain" },
+      );
       setUploadState({ status: "done", extractedText: trimmed });
       void navigate({ to: "/results" });
     },
@@ -117,13 +110,8 @@ export function useFileUpload(): UseFileUploadReturn {
   );
 
   const loadSampleReport = useCallback(() => {
-    setUploadPayload({
-      status: "done",
-      extractedText: SAMPLE_REPORT_TEXT,
-      source: "sample",
-      receivedAt: Date.now(),
-    });
-    setUploadState({ status: "done", extractedText: SAMPLE_REPORT_TEXT });
+    uploadStore.setSampleMode(buildSampleResult());
+    setUploadState({ status: "done" });
     void navigate({ to: "/results" });
   }, [navigate]);
 
@@ -138,3 +126,5 @@ export function useFileUpload(): UseFileUploadReturn {
     setIsDragging,
   };
 }
+
+export default useFileUpload;

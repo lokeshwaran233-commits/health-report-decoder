@@ -1,28 +1,115 @@
-import type { UploadStatus } from "@/types/report";
+import type { AnalysisResult, AnalyzeInput, FileMeta } from "@/types/report";
 
-export interface UploadPayload {
-  status: UploadStatus;
-  extractedText: string;
-  source: "pdf" | "image" | "text" | "sample";
-  fileName?: string;
-  fileSize?: number;
-  mimeType?: string;
-  imageDataUrl?: string;
-  receivedAt: number;
+interface UploadStoreState {
+  input: AnalyzeInput | null;
+  fileMeta: FileMeta | null;
+  sampleMode: boolean;
+  receivedAt: number | null;
+  lastResult: AnalysisResult | null;
 }
 
-let payload: UploadPayload | null = null;
+const STORAGE_KEY = "reportrx_history";
+const MAX_HISTORY = 20;
 
-export function setUploadPayload(next: UploadPayload): void {
-  payload = next;
-}
+let state: UploadStoreState = {
+  input: null,
+  fileMeta: null,
+  sampleMode: false,
+  receivedAt: null,
+  lastResult: null,
+};
 
-export function consumeUploadPayload(): UploadPayload | null {
-  const current = payload;
-  payload = null;
-  return current;
-}
+export const uploadStore = {
+  setInput(input: AnalyzeInput, fileMeta?: FileMeta): void {
+    state = {
+      ...state,
+      input,
+      fileMeta: fileMeta ?? null,
+      sampleMode: false,
+      receivedAt: Date.now(),
+    };
+  },
+  setFileMeta(meta: FileMeta): void {
+    state = { ...state, fileMeta: meta };
+  },
+  setSampleMode(result: AnalysisResult): void {
+    state = {
+      ...state,
+      input: null,
+      fileMeta: { name: "Sample report", size: 0, type: "text/plain" },
+      sampleMode: true,
+      receivedAt: Date.now(),
+      lastResult: result,
+    };
+  },
+  getInput(): AnalyzeInput | null {
+    return state.input;
+  },
+  getFileMeta(): FileMeta | null {
+    return state.fileMeta;
+  },
+  isSampleMode(): boolean {
+    return state.sampleMode;
+  },
+  consumeSampleResult(): AnalysisResult | null {
+    if (!state.sampleMode) return null;
+    const r = state.lastResult;
+    state = { ...state, sampleMode: false };
+    return r;
+  },
+  clear(): void {
+    state = {
+      input: null,
+      fileMeta: null,
+      sampleMode: false,
+      receivedAt: null,
+      lastResult: null,
+    };
+  },
+  setLastResult(result: AnalysisResult): void {
+    state = { ...state, lastResult: result };
+    try {
+      if (typeof window === "undefined") return;
+      const existing = uploadStore.getHistory();
+      const filtered = existing.filter((r) => r.id !== result.id);
+      const next = [result, ...filtered].slice(0, MAX_HISTORY);
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+    } catch {
+      // ignore quota / privacy errors
+    }
+  },
+  getLastResult(): AnalysisResult | null {
+    return state.lastResult;
+  },
+  getHistory(): AnalysisResult[] {
+    try {
+      if (typeof window === "undefined") return [];
+      const raw = window.localStorage.getItem(STORAGE_KEY);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw) as AnalysisResult[];
+      if (!Array.isArray(parsed)) return [];
+      return parsed;
+    } catch {
+      return [];
+    }
+  },
+  clearHistory(): void {
+    try {
+      if (typeof window === "undefined") return;
+      window.localStorage.removeItem(STORAGE_KEY);
+    } catch {
+      // ignore
+    }
+  },
+  deleteHistoryItem(id: string): void {
+    try {
+      const next = uploadStore.getHistory().filter((r) => r.id !== id);
+      if (typeof window === "undefined") return;
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+    } catch {
+      // ignore
+    }
+  },
+};
 
-export function peekUploadPayload(): UploadPayload | null {
-  return payload;
-}
+export default uploadStore;

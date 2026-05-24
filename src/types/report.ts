@@ -11,7 +11,7 @@ export type BiomarkerCategory =
 export interface ReferenceRange {
   low: number;
   high: number;
-  unit: string;
+  unit?: string;
 }
 
 export interface Biomarker {
@@ -27,9 +27,9 @@ export interface Biomarker {
 }
 
 export interface ReportMetadata {
-  patientName?: string;
-  reportDate?: string;
-  labName?: string;
+  patientName?: string | null;
+  reportDate?: string | null;
+  labName?: string | null;
   uploadedAt: string;
 }
 
@@ -55,4 +55,26 @@ export interface UploadState {
   extractedText?: string;
   error?: string;
   progress?: number;
+}
+
+export type AnalyzeInput =
+  | { type: "text"; content: string }
+  | { type: "image"; content: string; mimeType: string };
+
+export interface FileMeta {
+  name: string;
+  size: number;
+  type: string;
+}
+
+export type AnalysisErrorCode =
+  | "PARSE_ERROR"
+  | "NO_DATA_FOUND"
+  | "API_ERROR"
+  | "RATE_LIMIT"
+  | "PAYMENT_REQUIRED";
+
+export interface AnalysisError {
+  code: AnalysisErrorCode;
+  message: string;
 }

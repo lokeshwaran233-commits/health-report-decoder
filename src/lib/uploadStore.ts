@@ -4,6 +4,7 @@ interface UploadStoreState {
   input: AnalyzeInput | null;
   fileMeta: FileMeta | null;
   sampleMode: boolean;
+  historyView: boolean;
   receivedAt: number | null;
   lastResult: AnalysisResult | null;
 }
@@ -15,9 +16,11 @@ let state: UploadStoreState = {
   input: null,
   fileMeta: null,
   sampleMode: false,
+  historyView: false,
   receivedAt: null,
   lastResult: null,
 };
+
 
 export const uploadStore = {
   setInput(input: AnalyzeInput, fileMeta?: FileMeta): void {

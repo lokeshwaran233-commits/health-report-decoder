@@ -89,6 +89,7 @@ function RootComponent() {
         </PageWrapper>
       </main>
       <Footer />
+      <Toaster position="top-center" richColors />
     </QueryClientProvider>
   );
 }

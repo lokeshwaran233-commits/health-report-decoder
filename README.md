@@ -21,13 +21,25 @@
 
 <br/>
 
-[🚀 Live Demo](https://report-insight-decoder.lovable.app) · [📋 Features](#-features) · [🛠 Tech Stack](#️-tech-stack) · [🏗 Architecture](#-architecture) · [👤 Author](#-author)
+[🚀 Live Demo](https://report-insight-decoder.lovable.app) · [🎬 Watch Demo Video](#-demo) · [📋 Features](#-features) · [🛠 Tech Stack](#️-tech-stack) · [🏗 Architecture](#-architecture) · [👤 Author](#-author)
 
 <br/>
 
 ---
 
 </div>
+
+## 🎬 Demo
+
+> **See ReportRx in action — full walkthrough of the upload → analysis → dashboard flow.**
+
+[![Watch the Demo on Loom](https://img.shields.io/badge/Watch%20Demo-Loom%20Video-625DF5?style=for-the-badge&logo=loom&logoColor=white)](https://www.loom.com/share/42b7952f0ae44de78faf2575282a3560)
+
+📽️ **[https://www.loom.com/share/42b7952f0ae44de78faf2575282a3560](https://www.loom.com/share/42b7952f0ae44de78faf2575282a3560)**
+
+> Covers: report upload → AI extraction → biomarker dashboard → doctor questions → history & trends → share/export flow.
+
+---
 
 ## 🎯 The Problem
 
@@ -362,6 +374,7 @@ MIT © 2026 Lokesh Waran
 
 *If this helped you understand your lab report, share it with someone who needs it.*
 
+[![Watch Demo](https://img.shields.io/badge/Watch%20Demo-Loom-625DF5?style=for-the-badge&logo=loom&logoColor=white)](https://www.loom.com/share/42b7952f0ae44de78faf2575282a3560)
 [![Share on WhatsApp](https://img.shields.io/badge/Share%20ReportRx-WhatsApp-25D366?style=for-the-badge&logo=whatsapp&logoColor=white)](https://wa.me/?text=Check%20out%20ReportRx%20-%20it%20explains%20your%20lab%20report%20in%20plain%20English!)
 [![Star on GitHub](https://img.shields.io/badge/Star%20on-GitHub-181717?style=for-the-badge&logo=github)](https://github.com/lokeshwaran233-commits/health-report-decoder)
 

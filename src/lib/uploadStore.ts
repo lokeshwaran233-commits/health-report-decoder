@@ -45,6 +45,20 @@ export const uploadStore = {
       lastResult: result,
     };
   },
+  setHistoryView(result: AnalysisResult): void {
+    state = {
+      ...state,
+      input: null,
+      fileMeta: null,
+      sampleMode: true,
+      historyView: true,
+      receivedAt: Date.now(),
+      lastResult: result,
+    };
+  },
+  isHistoryView(): boolean {
+    return state.historyView;
+  },
   getInput(): AnalyzeInput | null {
     return state.input;
   },
@@ -65,10 +79,12 @@ export const uploadStore = {
       input: null,
       fileMeta: null,
       sampleMode: false,
+      historyView: false,
       receivedAt: null,
       lastResult: null,
     };
   },
+
   setLastResult(result: AnalysisResult): void {
     state = { ...state, lastResult: result };
     try {

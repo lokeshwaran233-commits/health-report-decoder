@@ -59,16 +59,22 @@ export function DropZone({
       onDragEnter={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
+      style={{
+        backgroundColor: isDragging
+          ? "rgba(15,110,86,0.12)"
+          : "rgba(15,110,86,0.06)",
+        borderColor: "#1D9E75",
+        borderStyle: isDragging ? "solid" : "dashed",
+        borderWidth: "1.5px",
+      }}
       className={cn(
-        "rounded-card border-[1.5px] border-dashed transition-colors duration-150 cursor-pointer",
+        "rounded-card transition-[background-color,border-color,border-style] duration-200 cursor-pointer",
         "px-5 py-8 md:px-10 md:py-12 flex flex-col items-center text-center",
-        isDragging
-          ? "border-brand-teal bg-brand-teal-light/60"
-          : "border-[#9FE1CB] bg-white hover:bg-brand-teal-light/30",
+        "hover:!bg-[rgba(15,110,86,0.10)] hover:!border-solid",
       )}
     >
       <div
-        className="h-13 w-13 rounded-card bg-brand-teal-light flex items-center justify-center mb-4"
+        className="h-13 w-13 rounded-card bg-brand-teal-light flex items-center justify-center mb-4 animate-[rxpulse_2s_ease-in-out_infinite]"
         style={{ height: 52, width: 52 }}
       >
         <Upload className="h-6 w-6 text-brand-teal" aria-hidden="true" />
@@ -127,3 +133,5 @@ export function DropZone({
     </div>
   );
 }
+
+export default DropZone;

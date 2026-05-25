@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { Menu, X } from "lucide-react";
 import { Button } from "@/components/rx/Button";
@@ -53,11 +53,22 @@ const navLinks = [
 
 export function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 50);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
   return (
     <header
       className={cn(
-        "fixed top-0 inset-x-0 z-50 bg-white border-b border-brand-border",
+        "fixed top-0 inset-x-0 z-50 backdrop-blur-md transition-all duration-200",
+        scrolled
+          ? "bg-white/85 border-b border-brand-border shadow-[0_1px_0_rgba(0,0,0,0.04)]"
+          : "bg-white/70 border-b border-transparent",
       )}
     >
       <div className="mx-auto max-w-6xl h-14 px-4 md:px-6 flex items-center justify-between">
@@ -130,7 +141,6 @@ export function Navbar() {
               onClick={() => {
                 setMobileOpen(false);
                 if (link.scroll) {
-                  // wait a tick so the menu collapses first
                   setTimeout(scrollToHowItWorks, 50);
                 }
               }}
@@ -159,3 +169,5 @@ export function Navbar() {
     </header>
   );
 }
+
+export default Navbar;

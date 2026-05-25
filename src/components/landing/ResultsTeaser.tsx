@@ -43,7 +43,10 @@ export function ResultsTeaser() {
       aria-labelledby="teaser-heading"
       className="px-4 py-14 md:py-16"
     >
-      <div className="mx-auto max-w-6xl">
+      <div
+        className="mx-auto max-w-6xl rounded-2xl px-6 md:px-8 py-12 md:py-16"
+        style={{ backgroundColor: "rgba(15,110,86,0.04)" }}
+      >
         <h2
           id="teaser-heading"
           className="text-center text-xl md:text-2xl font-semibold tracking-tight text-brand-dark"

@@ -100,3 +100,20 @@
     border-radius: 6px;
   }
 }
+
+@keyframes rxpulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.08); }
+}
+
+@media print {
+  body * { visibility: hidden !important; }
+  #print-target, #print-target * { visibility: visible !important; }
+  #print-target {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+  }
+  header, nav, footer, [data-no-print] { display: none !important; }
+}

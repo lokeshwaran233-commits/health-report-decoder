@@ -11,6 +11,7 @@ import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { PageWrapper } from "@/components/layout/PageWrapper";
 import { ErrorBoundary } from "@/components/layout/ErrorBoundary";
+import { Toaster } from "sonner";
 
 function NotFoundComponent() {
   return (
@@ -50,7 +51,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         },
         { property: "og:type", content: "website" },
       ],
-      links: [{ rel: "stylesheet", href: appCss }],
+      links: [
+        { rel: "stylesheet", href: appCss },
+        { rel: "icon", type: "image/svg+xml", href: "/favicon.svg" },
+      ],
     }),
     shellComponent: RootShell,
     component: RootComponent,
@@ -85,6 +89,7 @@ function RootComponent() {
         </PageWrapper>
       </main>
       <Footer />
+      <Toaster position="top-center" richColors />
     </QueryClientProvider>
   );
 }

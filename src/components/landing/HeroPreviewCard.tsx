@@ -9,12 +9,15 @@ export function HeroPreviewCard() {
       animate={
         reduce
           ? { opacity: 1, y: 0 }
-          : { opacity: 1, y: [0, -8, 0, 8, 0] }
+          : { opacity: 1, y: [0, -8, 0] }
       }
       transition={
         reduce
           ? { duration: 0.3 }
-          : { duration: 3, repeat: Infinity, ease: "easeInOut" }
+          : {
+              opacity: { duration: 0.4 },
+              y: { duration: 3, repeat: Infinity, ease: "easeInOut" },
+            }
       }
       className="w-full max-w-sm rounded-card bg-white border border-brand-border shadow-[0_10px_30px_rgba(15,110,86,0.12)] p-5 mx-auto"
     >

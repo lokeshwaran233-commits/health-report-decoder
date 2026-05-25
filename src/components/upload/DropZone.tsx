@@ -133,3 +133,5 @@ export function DropZone({
     </div>
   );
 }
+
+export default DropZone;

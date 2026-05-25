@@ -1,57 +1,91 @@
-# Final polish: toaster, navbar, drop zone, favicon, print, build, visual fixes
+# ReportRx — final polish, History page, trends, publish
 
-## 1. Mount Toaster
-- In `src/routes/__root.tsx`, import `Toaster` from `sonner` and render `<Toaster position="top-center" richColors />` inside `RootComponent` (after `<Footer />`, before closing provider).
+Most of Day 1/2 polish is already in place (Toaster mounted, Navbar scroll, DropZone pulse, favicon, print CSS, root head title). Plan focuses on what's actually missing.
 
-## 2. Navbar scroll behavior
-- In `src/components/layout/Navbar.tsx`:
-  - Add `useEffect` listening to `window.scroll`; set `scrolled` state when `window.scrollY > 50`.
-  - Base classes: `bg-white/70 backdrop-blur-md transition-all duration-200`.
-  - When `scrolled`: `bg-white/85 border-b border-brand-border shadow-[0_1px_0_rgba(0,0,0,0.04)]`; when not scrolled: no border (`border-b-0`).
-  - Cleanup listener on unmount; use `{ passive: true }`.
+## 1. Fix sample report flow (sanity pass)
+- `useFileUpload.loadSampleReport`: keep current shape — `uploadStore.setSampleMode(buildSampleResult())` then navigate. Already correct.
+- `useReportAnalysis`: add a mount effect that, before anything else, calls `uploadStore.consumeSampleResult()`; if present, `loadResult(result)` and bail. Currently this logic lives in `results.tsx` — works, but move/duplicate the short-circuit into the hook so it's the very first thing on mount (per spec). Keep results.tsx fallback for safety.
 
-## 3. DropZone polish (covers visual fix #1)
-- In `src/components/upload/DropZone.tsx`:
-  - Replace idle background with `style={{ backgroundColor: "rgba(15,110,86,0.06)" }}` and inline `borderColor: "#1D9E75"`, `borderStyle: "dashed"`, `borderWidth: "1.5px"`.
-  - On hover: deepen bg to `rgba(15,110,86,0.10)` and switch to solid teal border via a `hover:` state (use a `group` + CSS var trick, or `onMouseEnter/Leave` state — simplest: keep two style objects + small `hovered` state).
-  - 200ms transition (`transition-colors transition-[background-color,border-color] duration-200`).
-  - Upload icon wrapper: add `animate-[rxpulse_2s_ease-in-out_infinite]`.
-- In `src/styles.css`, add keyframes `@keyframes rxpulse { 0%,100% { transform: scale(1) } 50% { transform: scale(1.08) } }`.
-- Also update `UploadCard.tsx` outer wrapper border color from `#9FE1CB` to keep consistent (leave as-is — outer is the card frame, not the drop zone).
+## 2. History page (`src/routes/history.tsx`)
+Replace placeholder with full `HistoryPage`:
+- Reads `uploadStore.getHistory()` into local state on mount.
+- Empty state: centered Lucide `ClipboardList` (48px, teal-light bg, rounded-xl), heading "No reports yet", subtext, CTA button → `/`.
+- Populated: heading "Your report history" + Lock-icon subheading "All reports are stored locally on your device only". Top-right "Clear all history" ghost coral button with inline 2-step confirm (button text swaps to "Are you sure? Click to confirm" for 3s).
+- Vertical stack of `HistoryCard` (new file `src/components/history/HistoryCard.tsx`), gap 12px.
+- Framer Motion page fade + stagger 60ms; respects `useReducedMotion`.
+- `head()` includes `noindex`.
 
-## 4. Favicon
-- Create `public/favicon.svg`: 32×32 teal (#0F6E56) filled circle with a white center crosshair / small pulse dot.
-- In `__root.tsx` `head().links`, add `{ rel: "icon", type: "image/svg+xml", href: "/favicon.svg" }`.
+### HistoryCard
+- Left 3px status border: coral if any flagged, amber if any watch, else teal.
+- Top row: patient name or "Lab Report" (left), report date (right).
+- Second row: lab name (left), `Uploaded {relative}` (right) — small `relativeTime(ts)` helper in `src/lib/relativeTime.ts`.
+- Status pills row reusing existing pill styles.
+- Bottom row: "View results →" ghost teal button + Trash2 icon button.
+- Hover: lift 2px + shadow, 200ms.
+- Delete: Framer Motion exit (slide left + fade 300ms), `uploadStore.deleteHistoryItem(id)`, `toast.success("Report removed from history")`. Empty-state appears if list empties.
+- View results: `uploadStore.setSampleMode(result)` (reuses short-circuit) + navigate `/results`.
 
-## 5. Global print CSS
-- Append to bottom of `src/styles.css`:
-  ```css
-  @media print {
-    body * { visibility: hidden !important; }
-    #print-target, #print-target * { visibility: visible !important; }
-    #print-target { position: absolute; left: 0; top: 0; width: 100%; }
-    header, nav, footer, [data-no-print] { display: none !important; }
-  }
-  ```
+## 3. Trend chart (`src/components/history/TrendChart.tsx`)
+- Render only if `history.length >= 2`.
+- Heading "Your health trends over time" + Lucide `TrendingUp`.
+- Biomarker selector: horizontal pill scroller of biomarkers appearing in ≥2 reports (case-insensitive match by `name`). Default: first flagged → watch → alphabetical.
+- Recharts `LineChart`, height 240/180:
+  - X `date` formatted `DD MMM` (use Intl, no new dep).
+  - Y auto domain with 20% padding.
+  - Line stroke `#0F6E56` width 2, dot 5, activeDot 7.
+  - `ReferenceArea y1=low y2=high` fill `rgba(15,110,86,0.08)` (uses first occurrence's reference range).
+  - `ReferenceLine` low/high dashed `#1D9E75` with right-side "Low"/"High" labels.
+  - Custom tooltip: white card, date + value + unit + status badge.
+  - `isAnimationActive` honors reduced motion.
+- 1-point fallback message.
 
-## 6. Visual fix #2 — Hero card floating animation
-- `HeroPreviewCard.tsx` already has a floating animation, but it cycles `[0,-8,0,8,0]` (drift both ways). Tighten to spec: `y: [0, -8, 0]`, `duration: 3`, `ease: "easeInOut"`, `repeat: Infinity`. Keep reduced-motion guard.
+## 4. Results page banner for history view
+- Detect `uploadStore.isSampleMode()` AND result has a real `metadata.reportDate` (sample mode flag covers both sample + history view). Cleanest: add `uploadStore.setHistoryView(result)` boolean separate from sample. Add `isHistoryView()` getter. Use in `results.tsx` to render a teal banner with Lucide `History`, text `Viewing a past report from {reportDate}`, right-side `← Back to history` link. Suppress `<SavedBanner />` in this mode.
+- HistoryCard "View results" calls `setHistoryView` instead of `setSampleMode`.
 
-## 7. Visual fix #3 — Results teaser section background
-- `ResultsTeaser.tsx`: wrap content in a panel `<div>` with `style={{ backgroundColor: "rgba(15,110,86,0.04)" }}` (the page is light, not dark — use very faint teal tint instead of white-on-white) and `className="rounded-2xl px-8 py-16"`. Keep the existing subheading ("A preview of how every biomarker is broken down for you.") which is already present.
-- Outer `<section>` padding stays for spacing.
+## 5. Navbar History link
+- Add `{ id: "history", label: "History", href: "/history" }` between How it works and Privacy. Render via `<Link to="/history">` (extend `navLinks` typing).
+- Mobile menu: include all four items, slide-down (Framer Motion `AnimatePresence` height/opacity), close on link click or outside click (existing toggle already closes on click; add `useEffect` outside-click listener).
 
-> Note: page background is `--color-brand-surface` (#FAFAF8, light). The user's `rgba(255,255,255,0.04)` was written assuming a dark theme and would be invisible here. Using a faint teal tint instead — confirms visual separation against the cream surface. If you want literal white, say so.
+## 6. Results page additions
+- Below "Analyse another report" CTA: `<Link to="/history">← View all your past reports</Link>` 13px muted, teal on hover.
+- `useReportAnalysis.runAnalysis` success path: `toast.success("Report saved to your history")` — only when not sample mode and not history view.
 
-## 8. Build + export verification
-- Run `bunx tsc --noEmit` and fix any reported errors.
-- Grep all components under `src/components/**` and pages — ensure each file has both a named export and `export default`. Add `export default X` where missing.
-- Verify `loadSampleReport` in `useFileUpload.ts` / `useReportAnalysis.ts` sets the pre-baked `sampleResult` directly and never calls `analyze.functions.ts`.
+## 7. Performance + QA
+- Confirm `pdfjs-dist` is dynamic-imported in `pdfExtract.ts` (verify, no change if already).
+- Audit Framer Motion usages → wrap with `useReducedMotion()` guard helper.
+- Wrap any remaining localStorage in try/catch (uploadStore already does).
+- Verify share decoder banner already present in `results.tsx` (it is).
+- `handleAnalyseAnother` already clears store + resets title.
+- Strip any `console.log` (grep).
+- Grep for `: any` and replace.
+- `bunx tsc --noEmit` clean.
+- Ensure every new component has named + default export.
+
+## 8. README (`public/README.md`)
+- Write the provided markdown verbatim, leave `{YOUR_PUBLISHED_URL}` placeholder for now (update after publish step).
+
+## 9. Publish
+- After build passes, prompt user with `<presentation-open-publish>` action. Once URL is known, update README.
 
 ## Out of scope
-- No new routes, no backend changes, no schema changes.
-- Real AI wiring already done in previous turn; not touched here.
+- No backend/schema changes.
+- No new AI calls.
+- No redesign of existing landing or results sections beyond items listed.
+
+## Files created
+- `src/components/history/HistoryCard.tsx`
+- `src/components/history/TrendChart.tsx`
+- `src/lib/relativeTime.ts`
+- `public/README.md`
+
+## Files edited
+- `src/routes/history.tsx` (full page)
+- `src/routes/results.tsx` (history-view banner + history link)
+- `src/components/layout/Navbar.tsx` (History link + mobile animation + outside click)
+- `src/hooks/useReportAnalysis.ts` (sample short-circuit + save toast)
+- `src/lib/uploadStore.ts` (`setHistoryView` / `isHistoryView` / `consumeHistoryView`)
 
 ## Risk
-- Navbar transparency may clash on routes with white hero backgrounds — acceptable since landing has cream surface.
-- Print CSS is global; any future route needing full-page print must opt out via `#print-target` wrapper.
+- `setHistoryView` reuses module-scope state — fine since results page consumes immediately on mount.
+- Trend chart reference range uses first occurrence; values across labs may use different units. Acceptable for v1; tooltip shows unit.

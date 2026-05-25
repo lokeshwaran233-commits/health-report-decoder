@@ -52,6 +52,10 @@ export function useReportAnalysis(): UseReportAnalysisReturn {
         setResult(result);
         uploadStore.setLastResult(result);
         setState("success");
+        if (!uploadStore.isSampleMode() && !uploadStore.isHistoryView()) {
+          toast.success("Report saved to your history");
+        }
+
       } catch (e) {
         const code =
           e && typeof e === "object" && "code" in e

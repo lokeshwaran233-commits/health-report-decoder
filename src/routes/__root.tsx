@@ -11,6 +11,7 @@ import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { PageWrapper } from "@/components/layout/PageWrapper";
 import { ErrorBoundary } from "@/components/layout/ErrorBoundary";
+import { Toaster } from "sonner";
 
 function NotFoundComponent() {
   return (

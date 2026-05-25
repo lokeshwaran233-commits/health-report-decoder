@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { createFileRoute, Link, useNavigate, useSearch } from "@tanstack/react-router";
-import { AlertTriangle, ArrowLeft } from "lucide-react";
+import { AlertTriangle, ArrowLeft, History } from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
 import { Button } from "@/components/rx/Button";
@@ -197,9 +197,26 @@ function ResultsPage() {
     void navigate({ to: "/" });
   };
 
+  const isHistoryView = uploadStore.isHistoryView();
+
   return (
     <div className="mx-auto max-w-5xl px-4 py-8 md:px-8 md:py-12 space-y-6">
-      <SavedBanner />
+      {isHistoryView ? (
+        <div className="rounded-btn bg-brand-teal-light text-brand-teal px-4 py-2.5 flex items-center gap-2 text-sm">
+          <History className="h-4 w-4" aria-hidden="true" />
+          <span className="flex-1">
+            Viewing a past report
+            {analysisResult.metadata.reportDate
+              ? ` from ${analysisResult.metadata.reportDate}`
+              : ""}
+          </span>
+          <Link to="/history" className="font-medium hover:underline shrink-0">
+            ← Back to history
+          </Link>
+        </div>
+      ) : (
+        <SavedBanner />
+      )}
       <HealthScoreCard result={analysisResult} counts={statusCounts} />
       <ResultsHeader
         result={analysisResult}
@@ -208,6 +225,7 @@ function ResultsPage() {
         onDownload={() => downloadReportPdf(analysisResult)}
         onAnalyseAnother={handleAnalyseAnother}
       />
+
       <CategoryFilterBar
         active={activeCategory}
         onChange={setActiveCategory}
@@ -238,7 +256,7 @@ function ResultsPage() {
         </p>
       </div>
 
-      <div className="text-center pt-4">
+      <div className="text-center pt-4 space-y-3">
         <Button
           variant="primary"
           size="lg"
@@ -247,7 +265,16 @@ function ResultsPage() {
         >
           Analyse another report
         </Button>
+        <div>
+          <Link
+            to="/history"
+            className="text-[13px] text-brand-muted hover:text-brand-teal transition-colors"
+          >
+            ← View all your past reports
+          </Link>
+        </div>
       </div>
+
 
       <ShareModal
         open={shareOpen}

@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
+import { toast } from "sonner";
 import { analyzeReport } from "@/lib/analyze.functions";
 import { uploadStore } from "@/lib/uploadStore";
+
 import type {
   AnalysisError,
   AnalysisResult,
@@ -50,6 +52,10 @@ export function useReportAnalysis(): UseReportAnalysisReturn {
         setResult(result);
         uploadStore.setLastResult(result);
         setState("success");
+        if (!uploadStore.isSampleMode() && !uploadStore.isHistoryView()) {
+          toast.success("Report saved to your history");
+        }
+
       } catch (e) {
         const code =
           e && typeof e === "object" && "code" in e

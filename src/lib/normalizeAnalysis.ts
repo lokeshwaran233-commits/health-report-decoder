@@ -61,6 +61,7 @@ interface RawAnalysis {
   biomarkers?: RawBiomarker[];
   summary?: unknown;
   doctorQuestions?: unknown;
+  contentWarning?: unknown;
 }
 
 export function normalizeAnalysisResult(raw: unknown): AnalysisResult {
@@ -115,6 +116,10 @@ export function normalizeAnalysisResult(raw: unknown): AnalysisResult {
     doctorQuestions: Array.isArray(r.doctorQuestions)
       ? r.doctorQuestions.filter((q): q is string => typeof q === "string")
       : [],
+    contentWarning:
+      typeof r.contentWarning === "string" && r.contentWarning.trim().length > 0
+        ? r.contentWarning
+        : null,
   };
 }
 

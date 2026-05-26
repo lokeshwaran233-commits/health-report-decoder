@@ -39,6 +39,7 @@ export interface AnalysisResult {
   biomarkers: Biomarker[];
   summary: string;
   doctorQuestions: string[];
+  contentWarning: string | null;
 }
 
 export type UploadStatus =

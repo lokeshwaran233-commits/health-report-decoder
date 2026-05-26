@@ -71,10 +71,10 @@ export const saveReport = createServerFn({ method: "POST" })
         report_date: r.metadata.reportDate ?? null,
         lab_name: r.metadata.labName ?? null,
         patient_name: r.metadata.patientName ?? null,
-        status_counts: counts,
-        biomarkers: r.biomarkers,
+        status_counts: counts as unknown as never,
+        biomarkers: r.biomarkers as unknown as never,
         summary: r.summary,
-        doctor_questions: r.doctorQuestions,
+        doctor_questions: r.doctorQuestions as unknown as never,
         content_warning: r.contentWarning,
       })
       .select("id, created_at")

@@ -2,7 +2,9 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { analyzeReport } from "@/lib/analyze.functions";
+import { saveReport } from "@/lib/cloudSync.functions";
 import { uploadStore } from "@/lib/uploadStore";
+import { supabase } from "@/integrations/supabase/client";
 
 import type {
   AnalysisError,
@@ -36,6 +38,7 @@ const STATUS_ORDER: Record<Biomarker["status"], number> = {
 
 export function useReportAnalysis(): UseReportAnalysisReturn {
   const analyzeFn = useServerFn(analyzeReport);
+  const saveFn = useServerFn(saveReport);
   const [analysisResult, setResult] = useState<AnalysisResult | null>(null);
   const [analysisState, setState] = useState<AnalysisState>("idle");
   const [error, setError] = useState<AnalysisError | null>(null);
@@ -54,6 +57,13 @@ export function useReportAnalysis(): UseReportAnalysisReturn {
         setState("success");
         if (!uploadStore.isSampleMode() && !uploadStore.isHistoryView()) {
           toast.success("Report saved to your history");
+          // Best-effort cloud sync if signed in
+          void supabase.auth.getSession().then(({ data }) => {
+            if (!data.session) return;
+            saveFn({ data: { result } }).catch(() => {
+              /* silent; localStorage already has it */
+            });
+          });
         }
 
       } catch (e) {
@@ -69,7 +79,7 @@ export function useReportAnalysis(): UseReportAnalysisReturn {
         setState("error");
       }
     },
-    [analyzeFn],
+    [analyzeFn, saveFn],
   );
 
   const loadResult = useCallback((result: AnalysisResult) => {

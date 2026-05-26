@@ -174,6 +174,7 @@ export function buildSampleResult(): AnalysisResult {
       "AST is 52 with a normal ALT — could this be from exercise or medication, and do we need to repeat liver function tests?",
       "Are there dietary changes specific to my iron and Vitamin D status you'd recommend before starting supplements?",
     ],
+    contentWarning: null,
   };
 }
 

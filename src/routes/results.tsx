@@ -12,6 +12,7 @@ import { BiomarkerGrid } from "@/components/results/BiomarkerGrid";
 import { InsightsSection } from "@/components/results/InsightsSection";
 import { ShareModal } from "@/components/results/ShareModal";
 import { SavedBanner } from "@/components/results/SavedBanner";
+import { MixedContentBanner } from "@/components/results/MixedContentBanner";
 import { useReportAnalysis } from "@/hooks/useReportAnalysis";
 import { uploadStore } from "@/lib/uploadStore";
 import { decodeShare } from "@/lib/shareCodec";
@@ -216,6 +217,9 @@ function ResultsPage() {
         </div>
       ) : (
         <SavedBanner />
+      )}
+      {analysisResult.contentWarning && (
+        <MixedContentBanner message={analysisResult.contentWarning} />
       )}
       <HealthScoreCard result={analysisResult} counts={statusCounts} />
       <ResultsHeader

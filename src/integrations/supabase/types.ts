@@ -14,7 +14,89 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      reports: {
+        Row: {
+          biomarkers: Json
+          content_warning: string | null
+          created_at: string
+          doctor_questions: Json
+          id: string
+          lab_name: string | null
+          patient_name: string | null
+          report_date: string | null
+          status_counts: Json
+          summary: string
+          user_id: string
+        }
+        Insert: {
+          biomarkers: Json
+          content_warning?: string | null
+          created_at?: string
+          doctor_questions: Json
+          id?: string
+          lab_name?: string | null
+          patient_name?: string | null
+          report_date?: string | null
+          status_counts: Json
+          summary: string
+          user_id: string
+        }
+        Update: {
+          biomarkers?: Json
+          content_warning?: string | null
+          created_at?: string
+          doctor_questions?: Json
+          id?: string
+          lab_name?: string | null
+          patient_name?: string | null
+          report_date?: string | null
+          status_counts?: Json
+          summary?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      share_tokens: {
+        Row: {
+          accessed_count: number
+          created_at: string
+          expires_at: string
+          max_accesses: number
+          report_id: string | null
+          share_type: string
+          snapshot: Json
+          token: string
+        }
+        Insert: {
+          accessed_count?: number
+          created_at?: string
+          expires_at: string
+          max_accesses?: number
+          report_id?: string | null
+          share_type: string
+          snapshot: Json
+          token: string
+        }
+        Update: {
+          accessed_count?: number
+          created_at?: string
+          expires_at?: string
+          max_accesses?: number
+          report_id?: string | null
+          share_type?: string
+          snapshot?: Json
+          token?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "share_tokens_report_id_fkey"
+            columns: ["report_id"]
+            isOneToOne: false
+            referencedRelation: "reports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never

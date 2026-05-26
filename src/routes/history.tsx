@@ -1,12 +1,16 @@
 import { useEffect, useRef, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
+import { useQuery } from "@tanstack/react-query";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { ClipboardList, Lock, Trash2 } from "lucide-react";
 import { Button } from "@/components/rx/Button";
 import { HistoryCard } from "@/components/history/HistoryCard";
 import { TrendChart } from "@/components/history/TrendChart";
+import { useAuth } from "@/hooks/useAuth";
+import { listReports } from "@/lib/cloudSync.functions";
 import { uploadStore } from "@/lib/uploadStore";
-import type { AnalysisResult } from "@/types/report";
+import type { AnalysisResult, Biomarker } from "@/types/report";
 
 export const Route = createFileRoute("/history")({
   head: () => ({
@@ -45,12 +49,21 @@ function EmptyState() {
 
 function HistoryPage() {
   const reduceMotion = useReducedMotion();
-  const [history, setHistory] = useState<AnalysisResult[]>([]);
+  const [localHistory, setLocalHistory] = useState<AnalysisResult[]>([]);
   const [confirmClear, setConfirmClear] = useState(false);
   const confirmTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const { user } = useAuth();
+  const listFn = useServerFn(listReports);
+
+  const { data: cloudData } = useQuery({
+    queryKey: ["cloud-reports", user?.id ?? null],
+    queryFn: () => listFn(),
+    enabled: !!user,
+    retry: false,
+  });
 
   useEffect(() => {
-    setHistory(uploadStore.getHistory());
+    setLocalHistory(uploadStore.getHistory());
   }, []);
 
   useEffect(() => {
@@ -59,8 +72,44 @@ function HistoryPage() {
     };
   }, []);
 
+  // Merge cloud + local, dedupe by id
+  type RawReport = {
+    id: string;
+    created_at?: string;
+    report_date?: string | null;
+    lab_name?: string | null;
+    patient_name?: string | null;
+    status_counts?: unknown;
+    biomarkers?: unknown;
+    summary?: string;
+    doctor_questions?: unknown;
+    content_warning?: string | null;
+  };
+  const cloudHistory: AnalysisResult[] = (cloudData?.reports ?? []).map(
+    (r: RawReport): AnalysisResult => ({
+      id: r.id,
+      metadata: {
+        patientName: r.patient_name ?? null,
+        reportDate: r.report_date ?? null,
+        labName: r.lab_name ?? null,
+        uploadedAt: r.created_at ?? new Date().toISOString(),
+      },
+      biomarkers: (r.biomarkers as Biomarker[]) ?? [],
+      summary: r.summary ?? "",
+      doctorQuestions: (r.doctor_questions as string[]) ?? [],
+      contentWarning: r.content_warning ?? null,
+    }),
+  );
+  const seen = new Set<string>();
+  const history: AnalysisResult[] = [];
+  for (const r of [...cloudHistory, ...localHistory]) {
+    if (seen.has(r.id)) continue;
+    seen.add(r.id);
+    history.push(r);
+  }
+
   const handleDelete = (id: string) => {
-    setHistory((prev) => prev.filter((r) => r.id !== id));
+    setLocalHistory((prev) => prev.filter((r) => r.id !== id));
   };
 
   const handleClearAll = () => {

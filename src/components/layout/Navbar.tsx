@@ -256,6 +256,7 @@ export function Navbar() {
             className="md:hidden overflow-hidden border-t border-brand-border bg-white"
           >
             <div className="px-4 py-3 flex flex-col gap-1">
+              <div className="py-2"><LanguageSwitcher /></div>
               {navLinks.map((link) =>
                 link.kind === "route" ? (
                   <Link
@@ -278,16 +279,30 @@ export function Navbar() {
                 ),
               )}
               {!loading && !user && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMobileOpen(false);
-                    setAuthOpen(true);
-                  }}
-                  className="text-left text-sm text-brand-dark py-2 min-h-11"
-                >
-                  Sign in to save your reports
-                </button>
+                <>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMobileOpen(false);
+                      setAuthTab("signin");
+                      setAuthOpen(true);
+                    }}
+                    className="text-left text-sm text-brand-dark py-2 min-h-11"
+                  >
+                    {t("nav.signIn")}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMobileOpen(false);
+                      setAuthTab("signup");
+                      setAuthOpen(true);
+                    }}
+                    className="text-left text-sm text-brand-teal font-medium py-2 min-h-11"
+                  >
+                    {t("nav.signUp")}
+                  </button>
+                </>
               )}
               {!loading && user && (
                 <button
@@ -318,14 +333,14 @@ export function Navbar() {
                   }, 50);
                 }}
               >
-                Decode my report
+                {t("nav.decodeBtn")}
               </Button>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      <AuthModal open={authOpen} onClose={() => setAuthOpen(false)} />
+      <AuthModal open={authOpen} onClose={() => setAuthOpen(false)} initialTab={authTab} />
     </header>
   );
 }

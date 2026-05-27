@@ -3,17 +3,34 @@ import { z } from "zod";
 import { normalizeAnalysisResult } from "@/lib/normalizeAnalysis";
 import type { AnalysisError, AnalysisResult } from "@/types/report";
 
+const langSchema = z.enum(["en", "ta", "hi", "te"]).optional();
+
 const inputSchema = z.discriminatedUnion("type", [
   z.object({
     type: z.literal("text"),
     content: z.string().min(20).max(50000),
+    language: langSchema,
   }),
   z.object({
     type: z.literal("image"),
     content: z.string().min(50),
     mimeType: z.string().min(3).max(64),
+    language: langSchema,
   }),
 ]);
+
+const LANGUAGE_NAMES: Record<string, string> = {
+  en: "English",
+  ta: "Tamil (தமிழ்)",
+  hi: "Hindi (हिन्दी)",
+  te: "Telugu (తెలుగు)",
+};
+
+function buildLanguageInstruction(lang: string | undefined): string {
+  const name = LANGUAGE_NAMES[lang ?? "en"] ?? "English";
+  if ((lang ?? "en") === "en") return "";
+  return `\n\nLANGUAGE INSTRUCTION:\nGenerate ALL of the following fields in ${name}:\n- plainEnglish (biomarker explanation)\n- deepExplanation (biological significance)\n- summary (overall report narrative, all paragraphs)\n- doctorQuestions (all questions)\n- contentWarning (if any)\n\nKeep ALL of the following in English regardless of language setting:\n- Biomarker names (Haemoglobin, TSH, Vitamin D, etc.)\n- Units (g/dL, μIU/mL, ng/mL, etc.)\n- Numeric values\n- Medical abbreviations (CBC, LFT, etc.)\n- Lab name and patient name (as found in the report)\n\nThis ensures the content is readable and culturally appropriate while medical terms remain internationally standardised.`;
+}
 
 const SYSTEM_PROMPT = `You are a medical lab report analyzer. The text you receive may contain mixed content — lab report data alongside unrelated content such as resumes, letters, invoices, or other documents.
 
@@ -120,7 +137,7 @@ export const analyzeReport = createServerFn({ method: "POST" })
             temperature: 0.1,
             max_tokens: 4000,
             messages: [
-              { role: "system", content: SYSTEM_PROMPT },
+              { role: "system", content: SYSTEM_PROMPT + buildLanguageInstruction(data.language) },
               userMessage,
             ],
           }),

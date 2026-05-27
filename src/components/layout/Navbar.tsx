@@ -2,8 +2,10 @@ import { useEffect, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { LogOut, Menu, X } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/rx/Button";
 import { AuthModal } from "@/components/auth/AuthModal";
+import { LanguageSwitcher } from "@/components/layout/LanguageSwitcher";
 import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
 
@@ -46,12 +48,15 @@ type NavLink =
   | { id: string; label: string; kind: "route"; to: "/history" }
   | { id: string; label: string; kind: "placeholder" };
 
-const navLinks: NavLink[] = [
-  { id: "how-it-works", label: "How it works", kind: "scroll" },
-  { id: "history", label: "History", kind: "route", to: "/history" },
-  { id: "privacy", label: "Privacy", kind: "placeholder" },
-  { id: "about", label: "About", kind: "placeholder" },
-];
+function useNavLinks(): NavLink[] {
+  const { t } = useTranslation();
+  return [
+    { id: "how-it-works", label: t("nav.howItWorks"), kind: "scroll" },
+    { id: "history", label: t("nav.history"), kind: "route", to: "/history" },
+    { id: "privacy", label: t("nav.privacy"), kind: "placeholder" },
+    { id: "about", label: t("nav.about"), kind: "placeholder" },
+  ];
+}
 
 function UserMenu() {
   const { user, signOut } = useAuth();
@@ -106,9 +111,12 @@ function UserMenu() {
 }
 
 export function Navbar() {
+  const { t } = useTranslation();
+  const navLinks = useNavLinks();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
+  const [authTab, setAuthTab] = useState<"signin" | "signup">("signin");
   const reduceMotion = useReducedMotion();
   const headerRef = useRef<HTMLElement | null>(null);
   const { user, loading } = useAuth();
@@ -185,15 +193,31 @@ export function Navbar() {
           {navLinks.map(renderDesktopLink)}
         </nav>
 
-        <div className="hidden md:flex items-center gap-3">
+        <div className="hidden md:flex items-center gap-2">
+          <LanguageSwitcher />
           {!loading && !user && (
-            <button
-              type="button"
-              onClick={() => setAuthOpen(true)}
-              className="text-sm text-brand-muted hover:text-brand-dark transition-colors"
-            >
-              Sign in to save your reports
-            </button>
+            <>
+              <button
+                type="button"
+                onClick={() => {
+                  setAuthTab("signin");
+                  setAuthOpen(true);
+                }}
+                className="text-sm text-brand-muted hover:text-brand-dark transition-colors px-2"
+              >
+                {t("nav.signIn")}
+              </button>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => {
+                  setAuthTab("signup");
+                  setAuthOpen(true);
+                }}
+              >
+                {t("nav.signUp")}
+              </Button>
+            </>
           )}
           {!loading && user && <UserMenu />}
           <Button
@@ -205,7 +229,7 @@ export function Navbar() {
                 ?.scrollIntoView({ behavior: "smooth", block: "center" })
             }
           >
-            Decode my report
+            {t("nav.decodeBtn")}
           </Button>
         </div>
 
@@ -232,6 +256,7 @@ export function Navbar() {
             className="md:hidden overflow-hidden border-t border-brand-border bg-white"
           >
             <div className="px-4 py-3 flex flex-col gap-1">
+              <div className="py-2"><LanguageSwitcher /></div>
               {navLinks.map((link) =>
                 link.kind === "route" ? (
                   <Link
@@ -254,16 +279,30 @@ export function Navbar() {
                 ),
               )}
               {!loading && !user && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMobileOpen(false);
-                    setAuthOpen(true);
-                  }}
-                  className="text-left text-sm text-brand-dark py-2 min-h-11"
-                >
-                  Sign in to save your reports
-                </button>
+                <>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMobileOpen(false);
+                      setAuthTab("signin");
+                      setAuthOpen(true);
+                    }}
+                    className="text-left text-sm text-brand-dark py-2 min-h-11"
+                  >
+                    {t("nav.signIn")}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMobileOpen(false);
+                      setAuthTab("signup");
+                      setAuthOpen(true);
+                    }}
+                    className="text-left text-sm text-brand-teal font-medium py-2 min-h-11"
+                  >
+                    {t("nav.signUp")}
+                  </button>
+                </>
               )}
               {!loading && user && (
                 <button
@@ -294,14 +333,14 @@ export function Navbar() {
                   }, 50);
                 }}
               >
-                Decode my report
+                {t("nav.decodeBtn")}
               </Button>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      <AuthModal open={authOpen} onClose={() => setAuthOpen(false)} />
+      <AuthModal open={authOpen} onClose={() => setAuthOpen(false)} initialTab={authTab} />
     </header>
   );
 }

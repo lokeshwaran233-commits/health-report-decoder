@@ -1,108 +1,89 @@
-## Phase 4A — Auth + secure short-token sharing
+## Goal
 
-Enable Lovable Cloud, add optional email/password auth, move share links to short DB-backed tokens with 1-hour expiry, and sync history to the cloud for signed-in users.
+1. Add Google sign-in alongside the existing email/password flow in the auth modal, and surface a clearer sign-up entry point.
+2. Implement Phase 4B — Multi-language support (English, Tamil, Hindi, Telugu) for UI strings and AI-generated content.
 
 ---
 
-### 1. Enable Lovable Cloud
-Call `supabase--enable` (provisions Supabase + env vars). No external project setup needed — `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SERVICE_ROLE_KEY` come pre-wired. Disregards the user's manual env-var instructions; same effect.
+## Part 1 — Google Auth + Sign-up entry
 
-### 2. Database schema (single migration)
+**Provider enablement (server-side)**
+- Run `supabase--configure_social_auth` with `providers: ["google"]` (keeps email enabled). This is required — adding the button alone fails with "Unsupported provider".
 
-```sql
-create table public.reports (
-  id uuid primary key default gen_random_uuid(),
-  user_id uuid not null references auth.users(id) on delete cascade,
-  created_at timestamptz not null default now(),
-  report_date text,
-  lab_name text,
-  patient_name text,
-  status_counts jsonb not null,
-  biomarkers jsonb not null,
-  summary text not null,
-  doctor_questions jsonb not null,
-  content_warning text
-);
-alter table public.reports enable row level security;
-create policy "own reports select" on public.reports for select using (auth.uid() = user_id);
-create policy "own reports insert" on public.reports for insert with check (auth.uid() = user_id);
-create policy "own reports update" on public.reports for update using (auth.uid() = user_id);
-create policy "own reports delete" on public.reports for delete using (auth.uid() = user_id);
+**AuthModal updates** (`src/components/auth/AuthModal.tsx`)
+- Add a "Continue with Google" button at the top of the modal (above the email/password tabs), styled with the Google "G" mark.
+- On click, call `lovable.auth.signInWithOAuth("google", { redirect_uri: window.location.origin })` from `@/integrations/lovable`.
+- Add a divider ("or continue with email") between the Google button and the existing tabbed email form.
+- Wire all visible strings through `t("auth.*")` (see Part 2).
 
-create table public.share_tokens (
-  token text primary key,
-  report_id uuid not null references public.reports(id) on delete cascade,
-  share_type text not null check (share_type in ('summary','audio')),
-  expires_at timestamptz not null,
-  accessed_count int not null default 0,
-  max_accesses int not null default 10,
-  created_at timestamptz not null default now(),
-  -- denormalised snapshot so the public viewer never reads `reports`
-  snapshot jsonb not null
-);
-alter table public.share_tokens enable row level security;
--- No anon policies: all reads/writes go through server fns (service role).
-create index on public.share_tokens (report_id);
+**Navbar updates** (`src/components/layout/Navbar.tsx`)
+- Signed-out state currently shows a single "Sign in" link. Replace with two CTAs: `Sign in` (ghost) + `Sign up` (primary). Both open `AuthModal` with the appropriate initial tab via a new `initialTab?: "signin" | "signup"` prop on the modal.
+
+**Note:** No `/signup` route is added — the modal pattern stays. The user said "sign up page" but the existing pattern is a modal; we'll surface a distinct Sign up button + default the modal to the sign-up tab. If a dedicated route is required, that's a follow-up.
+
+---
+
+## Part 2 — i18n (Phase 4B)
+
+**Dependencies**
+- `bun add i18next react-i18next i18next-browser-languagedetector`
+
+**New files**
+```
+src/i18n/
+  config.ts                    # init i18next, register locales, language detector
+  locales/
+    en.json                    # source of truth (full key set from spec)
+    ta.json                    # Tamil — AI-generated translations
+    hi.json                    # Hindi — AI-generated translations
+    te.json                    # Telugu — AI-generated translations
+src/hooks/
+  useLanguage.ts               # returns { lang, setLang }, syncs localStorage + supabase user metadata + <html data-lang lang>
+src/components/layout/
+  LanguageSwitcher.tsx         # pill dropdown (🌐 EN ▾) with 4 options
 ```
 
-Notes:
-- `snapshot` stores only what the public viewer needs (metadata, statusCounts, summary, doctorQuestions, contentWarning). Public callers never read `reports`, so PII stays gated by RLS.
-- No anon RLS policies — public viewer hits a public server fn that uses `supabaseAdmin`.
+**Init wiring**
+- Import `./i18n/config` at the top of `src/router.tsx` so i18n initializes before any route renders.
+- `useLanguage` reads `localStorage["reportrx_lang"]` (fallback to browser language detector → `en`); on change, writes localStorage, calls `i18n.changeLanguage`, sets `document.documentElement.lang` + `data-lang`, and (if signed in) `supabase.auth.updateUser({ data: { preferred_language: lang } })`.
+- Root `useAuth` effect: when a user signs in, if their `user.user_metadata.preferred_language` exists and differs from current, apply it.
 
-### 3. Auth — email/password only
-- **`src/components/auth/AuthModal.tsx`** — Two-tab modal (Sign in / Create account), email + password, `supabase.auth.signUp({ email, password, options: { emailRedirectTo: window.location.origin } })` and `signInWithPassword`. On success: toast "Welcome to ReportRx", close. Use existing browser `@/integrations/supabase/client`.
-- **`src/hooks/useAuth.ts`** — Subscribes to `onAuthStateChange` (set up BEFORE `getSession()`), exposes `{ user, session, signOut }`. Single source of truth for nav + sync hooks.
-- **`src/components/layout/Navbar.tsx`** — Add right of History link:
-  - Logged out: "Sign in to save your reports" button → opens AuthModal
-  - Logged in: small circle with email-initial → click opens menu with email + "Sign out"
-- The app remains fully usable signed-out — no route guards.
+**String migration**
+- Replace hardcoded English in: `Navbar`, `LandingPage` / hero, `UploadCard` + `DropZone` + `PasteInput`, `LoadingScreen`, `ResultsHeader`, `BiomarkerCard` (status labels, "Why does this matter?"), `InsightsSection` (summary + questions headings), `ShareModal`, `history.tsx` (incl. empty state + clear-confirm), `AuthModal`, error toasts in `useReportAnalysis`, `MixedContentBanner`. Use `useTranslation()` + `t("group.key")` with interpolation for dynamic values (e.g. file size).
 
-### 4. Short-token share (replace base64 URL)
-- **New `src/lib/cloudSync.functions.ts`** (server fns, thin file — only `createServerFn` declarations):
-  - `saveReport` — `requireSupabaseAuth`, upserts into `reports`, returns row id.
-  - `listReports` — `requireSupabaseAuth`, returns user's reports.
-  - `deleteReport` — `requireSupabaseAuth`, deletes by id.
-  - `createShareToken({ result, counts, type })` — `requireSupabaseAuth`. Generates 12-char alphanumeric token (`crypto.randomBytes`), inserts into `share_tokens` with `expires_at = now + 1h` and a denormalised `snapshot`. If user has no `reports` row yet (signed-out flow can't reach here), this fn requires auth — share button shown only when signed in OR we save an ephemeral snapshot keyed only by token (no `report_id` linkage). **Decision: allow signed-OUT shares too** by making `share_tokens.report_id` nullable; insert with `report_id = null` and snapshot only. Adjusted schema accordingly:
-    ```sql
-    alter table public.share_tokens alter column report_id drop not null;
-    ```
-    For signed-out callers we need a public server fn — see below.
-  - `createPublicShareToken({ snapshot, type })` — NO middleware, validates input shape with Zod, generates token, inserts via `supabaseAdmin`. Used when no session exists.
-- **New `src/lib/share.functions.ts`** — Public `getShareSnapshot({ token })` server fn (no auth). Uses `supabaseAdmin`. Checks `expires_at`, checks `accessed_count < max_accesses`, increments `accessed_count`, returns `{ snapshot, type, expiresAt }` or typed errors `EXPIRED` / `LIMIT_EXCEEDED` / `NOT_FOUND`.
+**Language switcher placement**
+- Desktop Navbar: between History and the Sign in/up buttons.
+- Mobile: first item in the existing menu drawer.
 
-### 5. Route `/s/$token`
-- **New `src/routes/s.$token.tsx`** — Loader calls `getShareSnapshot({ data: { token } })`. Renders the existing shared summary UI (refactored out of `results.tsx` into `src/components/share/SharedSummaryView.tsx` so both routes use it).
-- States:
-  - `EXPIRED` → "This link has expired. Links are valid for 1 hour for your privacy." + CTA to `/`
-  - `LIMIT_EXCEEDED` → "This link has been accessed too many times"
-  - `NOT_FOUND` → "Link not found"
-  - Success → renders summary + banner "You're viewing a shared ReportRx summary — shared links expire after 1 hour"
-- `errorComponent` + `notFoundComponent` set per Tanstack rules.
+**Fonts & typography** (`src/styles.css`)
+- Add `@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Tamil:wght@400;500;600;700&family=Noto+Sans+Devanagari:wght@400;500;600;700&family=Noto+Sans+Telugu:wght@400;500;600;700&display=swap');`
+- Add selectors:
+  ```css
+  [data-lang="ta"] { font-family: 'Noto Sans Tamil', system-ui, sans-serif; font-size: 15px; line-height: 1.8; }
+  [data-lang="hi"] { font-family: 'Noto Sans Devanagari', system-ui, sans-serif; font-size: 15px; line-height: 1.8; }
+  [data-lang="te"] { font-family: 'Noto Sans Telugu', system-ui, sans-serif; font-size: 15px; line-height: 1.8; }
+  ```
 
-### 6. ShareModal update
-- Replace `encodeShare` URL with a call to `createShareToken` (signed in) or `createPublicShareToken` (signed out). Loading state on the copy/WhatsApp buttons while token mints.
-- WhatsApp message:  
-  `Check out my ReportRx health summary → {origin}/s/{TOKEN}\n(This link expires in 1 hour)`
-- Delete `src/lib/shareCodec.ts` after removing all references (search confirms only `ShareModal.tsx` and `results.tsx` shared-view branch use it; the shared-view branch in `results.tsx` is removed since `/s/$token` replaces it).
+**AI integration** (`src/lib/analyze.functions.ts`)
+- Extend `inputSchema` with `language: z.enum(["en","ta","hi","te"]).default("en")` on both variants.
+- Add `LANGUAGE_NAMES` map + append the spec's LANGUAGE INSTRUCTION block to `SYSTEM_PROMPT` (interpolate the selected language). Keep biomarker names, units, abbreviations, lab/patient names in English.
+- `useReportAnalysis` passes current `i18n.language` when invoking the server fn.
 
-### 7. Multi-device history sync
-- **`src/hooks/useReportAnalysis.ts`** — after `setLastResult`, if `useAuth().user` exists, call `saveReport({ data: result })`. Silently no-op on failure (toast warn).
-- **`src/routes/history.tsx`** — if signed in: `useQuery` against `listReports` server fn + merge with local. If signed out: existing localStorage path + banner "Sign in to access your reports across all your devices".
-- Delete from history: signed-in calls `deleteReport`; signed-out uses existing local removal.
+**Out of scope**
+- Translating share-page snapshots already created with English content (existing rows stay English; new analyses use the selected language).
+- RTL (none of the four langs are RTL).
+- Phases 4A polish, 4C audio.
 
-### 8. Wiring + boilerplate
-- Confirm `src/start.ts` registers `attachSupabaseAuth` in `functionMiddleware` (added by Cloud scaffold; check & append if missing).
-- Add `supabase.auth.onAuthStateChange` listener in `__root.tsx` that calls `router.invalidate()` so history view refreshes on sign-in/out.
-- No new npm packages (Supabase client is auto-generated by Cloud).
+---
 
-### 9. Verification
-- `bunx tsc --noEmit` clean.
-- Manual: signed-out share generates short token, opens in incognito, expires after 1h (test by manually backdating `expires_at`).
-- Manual: sign up → upload report → see it in History; sign in on another browser → same report appears.
+## Technical notes
 
-### Out of scope (explicit)
-- App-level encryption (using Supabase default, per user choice).
-- OAuth providers.
-- Password reset flow.
-- i18n (Phase 4B).
-- Audio (Phase 4C).
+- Translation JSON: I will populate all four locale files in one pass (AI-generated TA/HI/TE), matching the full key set from the spec. The user can refine later — the framework supports hot-swap.
+- `LanguageSwitcher` writes to `document.documentElement` so the font/spacing CSS applies globally without re-mounting components.
+- Google OAuth uses the Lovable broker (no manual client ID/secret needed).
+
+## Files touched (summary)
+
+Created: `src/i18n/config.ts`, 4 locale JSONs, `src/hooks/useLanguage.ts`, `src/components/layout/LanguageSwitcher.tsx`.
+Edited: `AuthModal.tsx`, `Navbar.tsx`, `router.tsx`, `styles.css`, `analyze.functions.ts`, `useReportAnalysis.ts`, `LandingPage.tsx`, `UploadCard.tsx`, `DropZone.tsx`, `PasteInput.tsx`, `LoadingScreen.tsx`, `ResultsHeader.tsx`, `BiomarkerCard.tsx`, `InsightsSection.tsx`, `ShareModal.tsx`, `MixedContentBanner.tsx`, `history.tsx`, `package.json` (deps).
+Server: `configure_social_auth` for Google.

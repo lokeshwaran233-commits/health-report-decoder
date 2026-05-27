@@ -58,9 +58,11 @@ export interface UploadState {
   progress?: number;
 }
 
+export type SupportedLang = "en" | "ta" | "hi" | "te";
+
 export type AnalyzeInput =
-  | { type: "text"; content: string }
-  | { type: "image"; content: string; mimeType: string };
+  | { type: "text"; content: string; language?: SupportedLang }
+  | { type: "image"; content: string; mimeType: string; language?: SupportedLang };
 
 export interface FileMeta {
   name: string;

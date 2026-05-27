@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { analyzeReport } from "@/lib/analyze.functions";
 import { saveReport } from "@/lib/cloudSync.functions";
@@ -39,6 +40,7 @@ const STATUS_ORDER: Record<Biomarker["status"], number> = {
 export function useReportAnalysis(): UseReportAnalysisReturn {
   const analyzeFn = useServerFn(analyzeReport);
   const saveFn = useServerFn(saveReport);
+  const { i18n, t } = useTranslation();
   const [analysisResult, setResult] = useState<AnalysisResult | null>(null);
   const [analysisState, setState] = useState<AnalysisState>("idle");
   const [error, setError] = useState<AnalysisError | null>(null);
@@ -47,16 +49,18 @@ export function useReportAnalysis(): UseReportAnalysisReturn {
 
   const runAnalysis = useCallback(
     async (input: AnalyzeInput) => {
-      setLastInput(input);
+      const lang = (i18n.language ?? "en").split("-")[0];
+      const withLang = { ...input, language: lang } as AnalyzeInput;
+      setLastInput(withLang);
       setState("loading");
       setError(null);
       try {
-        const result = (await analyzeFn({ data: input })) as AnalysisResult;
+        const result = (await analyzeFn({ data: withLang })) as AnalysisResult;
         setResult(result);
         uploadStore.setLastResult(result);
         setState("success");
         if (!uploadStore.isSampleMode() && !uploadStore.isHistoryView()) {
-          toast.success("Report saved to your history");
+          toast.success(t("history.savedToast"));
           // Best-effort cloud sync if signed in
           void supabase.auth.getSession().then(({ data }) => {
             if (!data.session) return;

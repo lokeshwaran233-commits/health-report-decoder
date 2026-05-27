@@ -1,0 +1,105 @@
+{
+  "nav": {
+    "howItWorks": "How it works",
+    "history": "History",
+    "privacy": "Privacy",
+    "about": "About",
+    "decodeBtn": "Decode my report",
+    "signIn": "Sign in",
+    "signUp": "Sign up"
+  },
+  "hero": {
+    "badge": "AI-powered lab analysis · Free to try",
+    "headline": "Your lab report,",
+    "headlineAccent": "finally explained.",
+    "subtext": "Upload your blood test or medical report. Get instant visual breakdowns, plain-English explanations, and the exact questions to ask your doctor."
+  },
+  "upload": {
+    "tabFile": "Upload file",
+    "tabPaste": "Paste text",
+    "dropTitle": "Drop your lab report here",
+    "dropSub": "Drag and drop, or browse to upload",
+    "browseBtn": "Browse files",
+    "sampleLink": "Try with a sample CBC report →",
+    "hint": "Your data never leaves your device during extraction — we only send text to our AI.",
+    "errorType": "Only PDF, JPG, and PNG files are supported.",
+    "errorSize": "Your file is {{size}} MB. Please use a file under 10 MB."
+  },
+  "results": {
+    "normalLabel": "Normal",
+    "watchLabel": "To watch",
+    "flaggedLabel": "Flagged",
+    "testsAnalysed": "tests analysed",
+    "shareSummary": "Share summary",
+    "downloadPdf": "Download PDF",
+    "analyseAnother": "Analyse another report",
+    "whyMatter": "Why does this matter?",
+    "showLess": "Show less",
+    "summaryHeading": "Your report summary",
+    "questionsHeading": "Take these to your next appointment",
+    "questionsSub": "Generated based on your specific results",
+    "copyAll": "Copy all questions",
+    "copiedAll": "Copied to clipboard ✓",
+    "viewHistory": "← View all your past reports",
+    "disclaimer": "ReportRx is for informational purposes only. Always consult a qualified healthcare professional."
+  },
+  "history": {
+    "heading": "Your report history",
+    "subtext": "All reports are stored locally on your device only",
+    "clearAll": "Clear all history",
+    "confirmClear": "Are you sure? Click to confirm",
+    "viewResults": "View results →",
+    "emptyHeading": "No reports yet",
+    "emptySub": "Upload your first lab report to start tracking your health over time",
+    "emptyBtn": "Decode my first report →",
+    "trendsHeading": "Your health trends over time",
+    "deletedToast": "Report removed from history",
+    "savedToast": "Report saved to your history"
+  },
+  "share": {
+    "heading": "Share your report summary",
+    "subtext": "This shares only the summary — no raw report data is included",
+    "copyLink": "Copy shareable link",
+    "whatsapp": "Share via WhatsApp",
+    "audioShare": "Share audio summary",
+    "expiry": "This link expires in 1 hour",
+    "whatsappMessage": "I decoded my lab report with ReportRx. Here's my health summary → {{url}} (expires in 1 hour)"
+  },
+  "loading": {
+    "step1": "Extracting biomarkers from your report...",
+    "step2": "Analysing your values against reference ranges...",
+    "step3": "Generating your personalised insights...",
+    "tip1": "Low MCV combined with low haemoglobin often points to iron-deficiency anaemia",
+    "tip2": "TSH above 4.0 can indicate early hypothyroidism — worth discussing with your doctor",
+    "tip3": "Vitamin D below 20 ng/mL is considered deficient by most clinical guidelines"
+  },
+  "auth": {
+    "signInHeading": "Welcome back",
+    "signUpHeading": "Create your account",
+    "subtext": "Save your reports across all your devices.",
+    "emailLabel": "Email address",
+    "passwordLabel": "Password",
+    "signInBtn": "Sign in",
+    "signUpBtn": "Create account",
+    "continueGoogle": "Continue with Google",
+    "orDivider": "or continue with email",
+    "switchToSignUp": "Don't have an account? Sign up",
+    "switchToSignIn": "Already have an account? Sign in",
+    "signOut": "Sign out",
+    "syncBanner": "Sign in to access your reports across all your devices",
+    "navPrompt": "Sign in to save your reports",
+    "checkInbox": "Check your inbox to verify your email",
+    "welcomeBack": "Welcome back to ReportRx"
+  },
+  "errors": {
+    "noDataFound": "Could not extract any biomarker values. Try pasting the text manually.",
+    "parseError": "Something went wrong analysing your report. Please try again.",
+    "apiError": "Our AI service is temporarily unavailable. Please try again in a moment.",
+    "uploadFirst": "Please upload a report first",
+    "expiredLink": "This link has expired. Share links are valid for 1 hour for your privacy.",
+    "invalidLink": "This link is invalid or has been accessed too many times."
+  },
+  "language": {
+    "label": "Language"
+  }
+}

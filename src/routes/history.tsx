@@ -120,7 +120,7 @@ function HistoryPage() {
     }
     if (confirmTimer.current) clearTimeout(confirmTimer.current);
     uploadStore.clearHistory();
-    setHistory([]);
+    setLocalHistory([]);
     setConfirmClear(false);
   };
 

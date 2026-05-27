@@ -83,7 +83,7 @@ export function useReportAnalysis(): UseReportAnalysisReturn {
         setState("error");
       }
     },
-    [analyzeFn, saveFn],
+    [analyzeFn, saveFn, i18n.language, t],
   );
 
   const loadResult = useCallback((result: AnalysisResult) => {

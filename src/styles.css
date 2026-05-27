@@ -117,3 +117,8 @@
   }
   header, nav, footer, [data-no-print] { display: none !important; }
 }
+
+/* Indic script language adjustments */
+[data-lang="ta"] body { font-family: 'Noto Sans Tamil', 'Inter', system-ui, sans-serif; font-size: 15px; line-height: 1.8; }
+[data-lang="hi"] body { font-family: 'Noto Sans Devanagari', 'Inter', system-ui, sans-serif; font-size: 15px; line-height: 1.8; }
+[data-lang="te"] body { font-family: 'Noto Sans Telugu', 'Inter', system-ui, sans-serif; font-size: 15px; line-height: 1.8; }

@@ -1,89 +1,93 @@
-## Goal
+# Phase 4A/4B Stabilization Plan
 
-1. Add Google sign-in alongside the existing email/password flow in the auth modal, and surface a clearer sign-up entry point.
-2. Implement Phase 4B — Multi-language support (English, Tamil, Hindi, Telugu) for UI strings and AI-generated content.
+I can't see any console errors or network requests from your session right now (the replay only shows scrolling), and the published server logs are empty for the last hour — so I can't yet point to one exact line that breaks "Decode my report". I'll instrument first, then fix what we find, plus do the visible items you called out (Sign Up clarity + a graphical flow on the results page).
 
----
+## 1. Reproduce + diagnose the "won't show result" bug
 
-## Part 1 — Google Auth + Sign-up entry
+Likely suspects (most → least probable based on recent edits):
 
-**Provider enablement (server-side)**
-- Run `supabase--configure_social_auth` with `providers: ["google"]` (keeps email enabled). This is required — adding the button alone fails with "Unsupported provider".
+a. **`analyzeReport` server fn rejects new `language` field for older callers.** `inputSchema` now requires the discriminated union to optionally include `language`. If anything (history "view past report", sample mode replay, retry) calls without going through `useReportAnalysis`, fine — but the retry path uses `lastInput` which already has `language`, so safe. Still verify.
 
-**AuthModal updates** (`src/components/auth/AuthModal.tsx`)
-- Add a "Continue with Google" button at the top of the modal (above the email/password tabs), styled with the Google "G" mark.
-- On click, call `lovable.auth.signInWithOAuth("google", { redirect_uri: window.location.origin })` from `@/integrations/lovable`.
-- Add a divider ("or continue with email") between the Google button and the existing tabbed email form.
-- Wire all visible strings through `t("auth.*")` (see Part 2).
+b. **`LOVABLE_API_KEY` missing at runtime.** Server fn throws `API_ERROR` → the catch in `useReportAnalysis` sets state to "error" but the error UI shows "Something went wrong" with no detail. Symptom matches "glitches and won't show the result".
 
-**Navbar updates** (`src/components/layout/Navbar.tsx`)
-- Signed-out state currently shows a single "Sign in" link. Replace with two CTAs: `Sign in` (ghost) + `Sign up` (primary). Both open `AuthModal` with the appropriate initial tab via a new `initialTab?: "signin" | "signup"` prop on the modal.
+c. **Gemini returning non-JSON with the new LANGUAGE_INSTRUCTION block.** Adding multi-language instructions can push the model to wrap in markdown fences. `tryParseJson` already handles this, but worth confirming.
 
-**Note:** No `/signup` route is added — the modal pattern stays. The user said "sign up page" but the existing pattern is a modal; we'll surface a distinct Sign up button + default the modal to the sign-up tab. If a dedicated route is required, that's a follow-up.
+d. **`uploadStore.getInput()` is null on results mount** because of a stale toast.info("Please upload a report first") loop when navigation is too fast — verify.
 
----
+Steps:
+- Call `invoke-server-function` against `/_serverFn/...analyzeReport` with the sample text payload to capture the real failure mode.
+- Pull `server-function-logs` (preview + published) filtered on `analyze`, `LOVABLE`, `PARSE`, `429`, `402`.
+- Add a single `console.error("[analyzeReport]", code, message)` in `useReportAnalysis` catch so the next user session surfaces a real error string in console logs.
 
-## Part 2 — i18n (Phase 4B)
+## 2. Fix what the diagnostics reveal
 
-**Dependencies**
-- `bun add i18next react-i18next i18next-browser-languagedetector`
+Most-likely fix targets (apply only what the logs prove):
 
-**New files**
+- **`useReportAnalysis`**: Surface real `error.message` to the user via the existing error screen (already does this) and ensure `lastInput` is set BEFORE `setState("loading")` so retry works even when the fn rejects synchronously.
+- **`analyze.functions.ts`**: If `LOVABLE_API_KEY` is missing on the worker, fall back to a clearer error and log it. Also: tighten the system-prompt suffix so the language instruction stays inside the JSON-only guardrail (append "Return ONLY valid JSON, no markdown." once, after the language block).
+- **`results.tsx` mount effect**: Add a tiny guard so the "Please upload a report first" toast only fires when `analysisState === "idle"` AND there's no input AND we're not in shared mode AND we're not mid-navigation (one-shot ref).
+- If the failure is `NO_DATA_FOUND` on real PDFs, also confirm `pdfExtract` is producing text (cross-verify task — see §3).
+
+## 3. Cross-verify with a real uploaded document
+
+- Use the browser tool against the preview, upload a sample PDF, watch network + console.
+- If extraction returns empty text, the PDF is image-only → push the user toward the image path (already supported) and show a hint in the error screen: "This PDF looks scanned — try the image upload tab or paste the text."
+- Confirm successful image upload path end-to-end too.
+
+No code change unless cross-verification surfaces a bug.
+
+## 4. Make "Sign Up" obviously visible
+
+Current Navbar uses `variant="secondary"` for Sign Up, which on white reads as a thin outline next to the bright teal "Decode my report" CTA — easy to miss.
+
+Changes in `src/components/layout/Navbar.tsx`:
+- Desktop: render Sign In as plain text link, Sign Up as a **solid teal pill** with white text (`variant="primary"` size sm), and keep "Decode my report" as a separate primary CTA — but visually differentiate them by making Sign Up *outlined teal* (`border-brand-teal text-brand-teal`) so two filled buttons don't fight. Add `aria-label="Create a free account"`.
+- Mobile menu: promote Sign Up to a full-width filled button at the top of the menu, Sign In below it as a text link.
+- Add a subtle "New here?" microcopy above the Sign Up button in the mobile menu.
+- No new routes — modal pattern stays.
+
+## 5. Graphical flow tracker on the results page
+
+You asked for "graphical flow at below … tracking, graph below too start state". I'll add **two** small visuals at the bottom of `/results` (above the "Analyse another report" CTA):
+
+### 5a. Journey flow ribbon (horizontal stepper)
+
+```text
+[ Uploaded ] ──▶ [ Extracted ] ──▶ [ Analysed ] ──▶ [ Insights ready ]
+   ✓ filename       ✓ N markers       ✓ AI done         ✓ now
 ```
-src/i18n/
-  config.ts                    # init i18next, register locales, language detector
-  locales/
-    en.json                    # source of truth (full key set from spec)
-    ta.json                    # Tamil — AI-generated translations
-    hi.json                    # Hindi — AI-generated translations
-    te.json                    # Telugu — AI-generated translations
-src/hooks/
-  useLanguage.ts               # returns { lang, setLang }, syncs localStorage + supabase user metadata + <html data-lang lang>
-src/components/layout/
-  LanguageSwitcher.tsx         # pill dropdown (🌐 EN ▾) with 4 options
-```
 
-**Init wiring**
-- Import `./i18n/config` at the top of `src/router.tsx` so i18n initializes before any route renders.
-- `useLanguage` reads `localStorage["reportrx_lang"]` (fallback to browser language detector → `en`); on change, writes localStorage, calls `i18n.changeLanguage`, sets `document.documentElement.lang` + `data-lang`, and (if signed in) `supabase.auth.updateUser({ data: { preferred_language: lang } })`.
-- Root `useAuth` effect: when a user signs in, if their `user.user_metadata.preferred_language` exists and differs from current, apply it.
+- Pure SVG/divs, theme tokens only (`brand-teal`, `brand-teal-light`, `brand-border`).
+- Each node: circle + check + label + small timestamp; connectors are 1px dashed lines that animate fill on first paint (Motion, respects `prefers-reduced-motion`).
+- "Start state" = the leftmost "Uploaded" node, always lit teal once results render.
+- Pulls data from `uploadStore.getFileMeta()` + `analysisResult.metadata.uploadedAt` + `biomarkers.length`.
 
-**String migration**
-- Replace hardcoded English in: `Navbar`, `LandingPage` / hero, `UploadCard` + `DropZone` + `PasteInput`, `LoadingScreen`, `ResultsHeader`, `BiomarkerCard` (status labels, "Why does this matter?"), `InsightsSection` (summary + questions headings), `ShareModal`, `history.tsx` (incl. empty state + clear-confirm), `AuthModal`, error toasts in `useReportAnalysis`, `MixedContentBanner`. Use `useTranslation()` + `t("group.key")` with interpolation for dynamic values (e.g. file size).
+### 5b. Status distribution mini-chart
 
-**Language switcher placement**
-- Desktop Navbar: between History and the Sign in/up buttons.
-- Mobile: first item in the existing menu drawer.
+- A compact horizontal stacked bar (Normal / Watch / Flagged) using `statusCounts`, with numeric labels and the three brand status colors.
+- Below the bar: a 7-segment category strip showing biomarker counts per category (blood, liver, kidney, …), each cell sized proportionally — gives an at-a-glance "where the issues live".
 
-**Fonts & typography** (`src/styles.css`)
-- Add `@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Tamil:wght@400;500;600;700&family=Noto+Sans+Devanagari:wght@400;500;600;700&family=Noto+Sans+Telugu:wght@400;500;600;700&display=swap');`
-- Add selectors:
-  ```css
-  [data-lang="ta"] { font-family: 'Noto Sans Tamil', system-ui, sans-serif; font-size: 15px; line-height: 1.8; }
-  [data-lang="hi"] { font-family: 'Noto Sans Devanagari', system-ui, sans-serif; font-size: 15px; line-height: 1.8; }
-  [data-lang="te"] { font-family: 'Noto Sans Telugu', system-ui, sans-serif; font-size: 15px; line-height: 1.8; }
-  ```
+Both visuals live in a new component `src/components/results/ResultsFlowGraphic.tsx`, imported into `results.tsx` just above the disclaimer card. No new dependencies — plain SVG + Tailwind + Motion (already installed).
 
-**AI integration** (`src/lib/analyze.functions.ts`)
-- Extend `inputSchema` with `language: z.enum(["en","ta","hi","te"]).default("en")` on both variants.
-- Add `LANGUAGE_NAMES` map + append the spec's LANGUAGE INSTRUCTION block to `SYSTEM_PROMPT` (interpolate the selected language). Keep biomarker names, units, abbreviations, lab/patient names in English.
-- `useReportAnalysis` passes current `i18n.language` when invoking the server fn.
+## 6. Out of scope this turn
 
-**Out of scope**
-- Translating share-page snapshots already created with English content (existing rows stay English; new analyses use the selected language).
-- RTL (none of the four langs are RTL).
-- Phases 4A polish, 4C audio.
+- Phase 4C audio summaries
+- Per-biomarker historical trend lines (already separately handled in `TrendChart` on `/history`)
+- Re-translating already-cached history items into a newly selected language
+- Any DB migration
 
 ---
 
-## Technical notes
+## Technical notes (for the engineer)
 
-- Translation JSON: I will populate all four locale files in one pass (AI-generated TA/HI/TE), matching the full key set from the spec. The user can refine later — the framework supports hot-swap.
-- `LanguageSwitcher` writes to `document.documentElement` so the font/spacing CSS applies globally without re-mounting components.
-- Google OAuth uses the Lovable broker (no manual client ID/secret needed).
+- Files touched (expected):
+  - `src/hooks/useReportAnalysis.ts` — log + ordering tweak
+  - `src/lib/analyze.functions.ts` — clearer missing-key error + prompt suffix
+  - `src/routes/results.tsx` — guard toast, mount `ResultsFlowGraphic`
+  - `src/components/layout/Navbar.tsx` — Sign Up visibility
+  - `src/components/results/ResultsFlowGraphic.tsx` — NEW
+- No schema changes, no new packages.
+- All colors via existing `brand-*` tokens in `src/styles.css`.
+- Diagnostics (`invoke-server-function`, `server-function-logs`) run first; code edits scoped to whatever the logs implicate, plus the always-on items (§4, §5).
 
-## Files touched (summary)
-
-Created: `src/i18n/config.ts`, 4 locale JSONs, `src/hooks/useLanguage.ts`, `src/components/layout/LanguageSwitcher.tsx`.
-Edited: `AuthModal.tsx`, `Navbar.tsx`, `router.tsx`, `styles.css`, `analyze.functions.ts`, `useReportAnalysis.ts`, `LandingPage.tsx`, `UploadCard.tsx`, `DropZone.tsx`, `PasteInput.tsx`, `LoadingScreen.tsx`, `ResultsHeader.tsx`, `BiomarkerCard.tsx`, `InsightsSection.tsx`, `ShareModal.tsx`, `MixedContentBanner.tsx`, `history.tsx`, `package.json` (deps).
-Server: `configure_social_auth` for Google.
+Approve and I'll execute steps 1 → 5 in that order in build mode.

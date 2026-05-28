@@ -214,6 +214,30 @@ export function ResultsFlowGraphic({ result, counts, onShareWhatsApp, onOpenShar
           </div>
         </div>
       )}
+
+      {/* Quick share actions */}
+      <div className="flex flex-col sm:flex-row gap-3 pt-2">
+        {onShareWhatsApp && (
+          <button
+            type="button"
+            onClick={onShareWhatsApp}
+            className="flex-1 inline-flex items-center justify-center gap-2 rounded-btn bg-[#25D366] text-white h-11 px-4 text-sm font-medium hover:opacity-90 transition"
+          >
+            <MessageCircle className="h-4 w-4" aria-hidden="true" />
+            Share on WhatsApp
+          </button>
+        )}
+        {onOpenShareModal && (
+          <button
+            type="button"
+            onClick={onOpenShareModal}
+            className="flex-1 inline-flex items-center justify-center gap-2 rounded-btn border-2 border-brand-teal text-brand-teal h-11 px-4 text-sm font-medium hover:bg-brand-teal hover:text-white transition"
+          >
+            <Share2 className="h-4 w-4" aria-hidden="true" />
+            More share options
+          </button>
+        )}
+      </div>
     </section>
   );
 }

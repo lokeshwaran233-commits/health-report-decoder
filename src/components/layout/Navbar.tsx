@@ -45,13 +45,14 @@ function scrollToHowItWorks() {
 
 type NavLink =
   | { id: string; label: string; kind: "scroll" }
-  | { id: string; label: string; kind: "route"; to: "/history" }
+  | { id: string; label: string; kind: "route"; to: "/history" | "/scan" }
   | { id: string; label: string; kind: "placeholder" };
 
 function useNavLinks(): NavLink[] {
   const { t } = useTranslation();
   return [
     { id: "how-it-works", label: t("nav.howItWorks"), kind: "scroll" },
+    { id: "scan", label: "Scan Decoder", kind: "route", to: "/scan" },
     { id: "history", label: t("nav.history"), kind: "route", to: "/history" },
     { id: "privacy", label: t("nav.privacy"), kind: "placeholder" },
     { id: "about", label: t("nav.about"), kind: "placeholder" },

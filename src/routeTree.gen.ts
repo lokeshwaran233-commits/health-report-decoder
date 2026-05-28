@@ -9,11 +9,23 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as ScanResultsRouteImport } from './routes/scan-results'
+import { Route as ScanRouteImport } from './routes/scan'
 import { Route as ResultsRouteImport } from './routes/results'
 import { Route as HistoryRouteImport } from './routes/history'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as STokenRouteImport } from './routes/s.$token'
 
+const ScanResultsRoute = ScanResultsRouteImport.update({
+  id: '/scan-results',
+  path: '/scan-results',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ScanRoute = ScanRouteImport.update({
+  id: '/scan',
+  path: '/scan',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ResultsRoute = ResultsRouteImport.update({
   id: '/results',
   path: '/results',
@@ -39,12 +51,16 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/history': typeof HistoryRoute
   '/results': typeof ResultsRoute
+  '/scan': typeof ScanRoute
+  '/scan-results': typeof ScanResultsRoute
   '/s/$token': typeof STokenRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/history': typeof HistoryRoute
   '/results': typeof ResultsRoute
+  '/scan': typeof ScanRoute
+  '/scan-results': typeof ScanResultsRoute
   '/s/$token': typeof STokenRoute
 }
 export interface FileRoutesById {
@@ -52,25 +68,56 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/history': typeof HistoryRoute
   '/results': typeof ResultsRoute
+  '/scan': typeof ScanRoute
+  '/scan-results': typeof ScanResultsRoute
   '/s/$token': typeof STokenRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/history' | '/results' | '/s/$token'
+  fullPaths:
+    | '/'
+    | '/history'
+    | '/results'
+    | '/scan'
+    | '/scan-results'
+    | '/s/$token'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/history' | '/results' | '/s/$token'
-  id: '__root__' | '/' | '/history' | '/results' | '/s/$token'
+  to: '/' | '/history' | '/results' | '/scan' | '/scan-results' | '/s/$token'
+  id:
+    | '__root__'
+    | '/'
+    | '/history'
+    | '/results'
+    | '/scan'
+    | '/scan-results'
+    | '/s/$token'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   HistoryRoute: typeof HistoryRoute
   ResultsRoute: typeof ResultsRoute
+  ScanRoute: typeof ScanRoute
+  ScanResultsRoute: typeof ScanResultsRoute
   STokenRoute: typeof STokenRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/scan-results': {
+      id: '/scan-results'
+      path: '/scan-results'
+      fullPath: '/scan-results'
+      preLoaderRoute: typeof ScanResultsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/scan': {
+      id: '/scan'
+      path: '/scan'
+      fullPath: '/scan'
+      preLoaderRoute: typeof ScanRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/results': {
       id: '/results'
       path: '/results'
@@ -106,8 +153,20 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   HistoryRoute: HistoryRoute,
   ResultsRoute: ResultsRoute,
+  ScanRoute: ScanRoute,
+  ScanResultsRoute: ScanResultsRoute,
   STokenRoute: STokenRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}

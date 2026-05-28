@@ -81,6 +81,7 @@ export function BiomarkerCard({
         meta.tint,
         !isTeaser && "hover:-translate-y-0.5 hover:shadow-[0_4px_16px_rgba(15,110,86,0.1)]",
         isTeaser && "pointer-events-none select-none",
+        b.criticalFlag && "ring-2 ring-brand-coral ring-offset-1",
       )}
     >
       <div className="flex items-start justify-between gap-3 mb-3">
@@ -93,10 +94,16 @@ export function BiomarkerCard({
             meta.pill,
           )}
         >
-          {b.status === "flagged" && (
+          {b.criticalFlag && (
+            <span className="relative flex h-2 w-2" aria-hidden="true">
+              <span className="absolute inline-flex h-full w-full rounded-full bg-brand-coral opacity-75 animate-ping" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-brand-coral" />
+            </span>
+          )}
+          {b.status === "flagged" && !b.criticalFlag && (
             <AlertCircle className="h-3 w-3" aria-hidden="true" />
           )}
-          {meta.label}
+          {b.criticalFlag ? "Critical" : meta.label}
         </span>
       </div>
 

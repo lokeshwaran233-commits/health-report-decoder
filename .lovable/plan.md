@@ -1,90 +1,40 @@
-# Clinical Intelligence Expansion — Sprints 1–4
+## ReportRx Scan Decoder — Sprints 1–3
 
-Deepen pattern recognition across Tiers S, A, and B. Every change flows through one pipeline: **AI prompt → JSON contract → `normalizeAnalysisResult` → typed `AnalysisResult` → results UI**. No new server functions; the existing `analyzeReport` does all the reasoning, the client renders the result.
+Adds a new `/scan` section that interprets medical imaging studies and scan reports with the same honesty-first guardrails used for lab reports. This plan covers scaffold + text/PDF report interpretation + X-Ray image vision. CT, MRI, US, ECG, Echo, and the remaining 10 modalities are explicitly deferred to later sprints.
 
-## What ships
+### What you'll see
 
-### 1. Expanded JSON contract from the AI
-The model is asked to return three new arrays alongside the existing fields:
-- `detectedPatterns` — multi-marker patterns the AI recognised (e.g. iron-deficiency triad, hypothyroid confirmed, anion-gap acidosis), each with the biomarker names involved, plain-English explanation, and severity.
-- `followUpTests` — concrete next tests the user should ask their doctor about, with reason and urgency (`urgent`/`soon`/`routine`).
-- `criticalFlag` on individual biomarkers — for the non-negotiable critical values list (troponin elevated, pH <7.2/>7.6, K+ <2.5/>6.5, Na+ <120/>155, glucose <50/>500, lactate >4, PaO2 <60).
+- New "Scan Decoder" link in the navbar.
+- `/scan` landing page: 12-tile modality picker (CT, MRI, X-Ray, Ultrasound, PET, Echo, EEG, ECG, Mammogram, DEXA, Angio, Nuclear) + a "Paste/Upload a scan report" option.
+- Selecting **X-Ray** or **"Scan report (text/PDF)"** opens the working flow: optional clinical context + body region, upload zone, mandatory disclaimer, analyze.
+- The other 10 tiles show a "Coming soon" tooltip — they're visible so the roadmap is clear, but disabled until later sprints.
+- Results page with a **Professional / Patient Summary** toggle, a **Critical Alert** banner when relevant, an **Indeterminate Findings** card, and a **Limitations / What was not assessed** card. Mandatory AI disclaimer at the top of every view.
+- Scan history is stored in a separate `scan_results` table so it doesn't collide with lab reports. A new "Scans" tab appears in the existing History page.
 
-### 2. New biomarker coverage (categories and rule sets)
-- **Tier S deepening** — cross-panel rules already implicit in the prompt are made explicit: iron-deficiency vs B12 anaemia, AST/ALT ratio, kidney triad, diabetic pattern, hypothyroid baseline, severe Vit D reclassification.
-- **A1 inflammation** — CRP, hsCRP, ESR with bacterial-vs-chronic-vs-cardiovascular bands.
-- **A2 iron studies** — Ferritin, Serum Iron, TIBC, Transferrin Sat — IDA / ACD / overload patterns + the ferritin-as-acute-phase caveat when CRP is high.
-- **A3 thyroid full panel** — FT4, FT3, Total T3/T4, anti-TPO, anti-TG — overt vs subclinical hypo, hyper, Hashimoto's, T3 toxicosis.
-- **A4 coagulation** — PT, INR, aPTT, D-dimer, Fibrinogen — INR severity, liver-linked coagulopathy, DIC critical pattern.
-- **A5 urine protein** — Urine Protein, UACR/Microalbumin, Urine Creatinine, 24-hr protein — microalbuminuria, diabetic-nephropathy combo, nephrotic-range flag.
-- **B1 lipids + metabolic** — Total/LDL/HDL/Trig/VLDL/Non-HDL + ratios, Fasting Insulin, **HOMA-IR computed client-side** from fasting glucose × insulin / 405; atherogenic-dyslipidaemia and metabolic-syndrome (3-of-5) patterns.
-- **B2 ABG** — pH, PaO2, PaCO2, HCO3, Base Excess, SaO2, Lactate — primary disorder + respiratory vs metabolic + hypoxaemia + sepsis combo.
-- **B3 extended electrolytes** — Magnesium, Phosphate, Osmolality, **Anion Gap computed client-side** from `Na − (Cl + HCO3)`; high-AG acidosis, hypomagnesaemia-driven hypoK/hypoCa, gout, refeeding.
+### What's behind it
 
-Two new categories are introduced in `BiomarkerCategory`: `"cardio"` (lipids, cardiac when reached) and `"coagulation"`. `"electrolyte"` is split out from `"kidney"` so anion-gap and Mg/Phos render in their own filter. The existing `"other"` fallback continues to absorb anything unmapped.
+New route `src/routes/scan.tsx` and (for sprint 2) `src/routes/scan.results.$id.tsx`. New folder `src/components/scan/` with `ScanTypeSelector`, `ScanUpload`, `ScanContextForm`, `ScanLoadingScreen`, `ScanResultsPage`, `ProfessionalReport`, `LaymanReport`, `FindingsCard`, `DifferentialCard`, `CriticalAlert`, `IndeterminateFlag`, `OutputToggle`, `ScanDisclaimer`. Types in `src/types/scan.ts` matching the `ScanInterpretationResult` shape from the doc (findings, differentials with `possible | probable | cannot_exclude` likelihood — no percentages, limitations, indeterminate, critical alerts).
 
-### 3. UI additions on the Results page
-Three new sections render below `InsightsSection`, in this order:
+Server function `src/lib/scanAnalysis.functions.ts` calls Lovable AI Gateway with two prompt paths:
 
-1. **Critical values banner** — only when any biomarker has `criticalFlag: true`. Red-bordered card at the very top of the page (above `HealthScoreCard`) with text *"One or more of your results requires prompt medical attention. Please contact your doctor today."* and a list of the offending markers.
-2. **Detected patterns** — `PatternsSection` showing one card per `detectedPattern` with severity-coloured left border (informational/watch/flagged/critical), the plain-English read, and the biomarker chips involved.
-3. **Recommended follow-up tests** — `FollowUpTestsSection` rendering each test as a card with an urgency badge (`coral`/`amber`/`teal` for urgent/soon/routine), the reason, and a "Copy for doctor" button that copies a one-line message to the clipboard.
+1. **Text/PDF report path** (Sprint 2): reuses `pdfExtract.ts`, sends extracted text + universal honesty header to `google/gemini-2.5-flash`.
+2. **X-Ray vision path** (Sprint 3): sends image as `image_url` data URL to `google/gemini-2.5-pro` (vision needed; flash is too lossy for image findings), with the X-Ray-specific system prompt from the doc — ABCDE checklist, fracture descriptor format, mandatory limitations block, critical findings list (tension pneumothorax, free air under diaphragm, etc.).
 
-`CategoryFilterBar` gets the two new categories. `BiomarkerCard` gets a red ring + small pulsing dot when `criticalFlag` is true.
+Honesty guardrails are enforced in the prompt and in the response normalizer (`src/lib/normalizeScan.ts`): strip the words `definitely`, `certainly`, `confirms`, `proves`, `rules out`, and the word `cancer` from layman text; require the AI to populate `aiConfidenceNote`; force `imageQuality: "inadequate"` short-circuit when the model says so.
 
-### 4. Backwards compatibility
-Old reports already saved (cloud + localStorage) don't have the new fields. `normalizeAnalysisResult` defaults `detectedPatterns: []`, `followUpTests: []`, `criticalFlag: false`. The new sections render nothing when arrays are empty — so historical reports keep working unchanged.
+State machine: `src/hooks/useScanAnalysis.ts` (mirrors `useReportAnalysis`).
 
-## Files
+New Supabase table `scan_results` with RLS scoped to `auth.uid()`. Saved on successful analysis when the user is signed in (same pattern as `cloudSync.functions.ts`). History page gets a "Reports / Scans" tab.
 
-**New**
-- `src/components/results/CriticalValuesBanner.tsx`
-- `src/components/results/PatternsSection.tsx`
-- `src/components/results/FollowUpTestsSection.tsx`
-- `src/lib/clinicalDerivations.ts` — pure functions: `computeHomaIR`, `computeAnionGap`, helpers to inject derived biomarkers into `AnalysisResult`.
+i18n: new `scan.*` keys added to `en/hi/ta/te` locale files for navbar, landing, upload, results, and disclaimer strings.
 
-**Edited**
-- `src/types/report.ts` — add `DetectedPattern`, `FollowUpTest`, `criticalFlag?`, extend `BiomarkerCategory` with `"cardio" | "coagulation" | "electrolyte"`, extend `AnalysisResult` with `detectedPatterns` and `followUpTests`.
-- `src/lib/normalizeAnalysis.ts` — parse + default the new fields, accept the new categories, coerce `criticalFlag` to boolean.
-- `src/lib/analyze.functions.ts` — expand `SYSTEM_PROMPT` with the Tier S/A/B pattern catalogue, the critical-values rule, the new JSON contract, and the tumour-marker guardrails (kept now so they're not violated later); bump `max_tokens` to 6000 to fit the larger payload; call `clinicalDerivations` to add HOMA-IR and Anion Gap derived biomarkers after normalisation.
-- `src/components/results/CategoryFilterBar.tsx` — labels for the new categories.
-- `src/components/results/BiomarkerCard.tsx` — `criticalFlag` styling.
-- `src/routes/results.tsx` — mount `CriticalValuesBanner` (top), `PatternsSection`, `FollowUpTestsSection` (below `InsightsSection`).
-- `src/i18n/locales/{en,ta,hi,te}.json` — strings for the three new sections, urgency labels, critical banner copy.
+### Out of scope (later sprints)
 
-## Technical details
+- CT, MRI, Ultrasound, ECG, Echo, and all remaining modalities — the 10 disabled tiles.
+- Comparison with prior scans / interval-change reasoning.
+- Professional PDF export of the scan report.
+- Per-image annotations / drawing on the scan.
 
-```text
-AI JSON contract (additions)
+### Open question
 
-{
-  "biomarkers": [
-    { ...existing, "criticalFlag": boolean }
-  ],
-  "detectedPatterns": [
-    {
-      "name": "iron_deficiency_anaemia",
-      "biomarkersInvolved": ["Haemoglobin", "MCV", "MCH"],
-      "plainEnglish": "Low Hb together with low MCV and MCH...",
-      "severity": "flagged"
-    }
-  ],
-  "followUpTests": [
-    {
-      "test": "Ferritin, Serum Iron, TIBC",
-      "reason": "To confirm iron deficiency suggested by your Hb/MCV/MCH pattern",
-      "urgency": "soon"
-    }
-  ]
-}
-```
-
-Communication guardrails baked into the prompt: never use the word "cancer" (kept for when C6 ships), never diagnose, always end abnormal summaries with an action, critical values get `criticalFlag: true` regardless of the lab's reference range.
-
-Token budget: 6000 max_tokens on `google/gemini-2.5-flash` is enough for ~25 biomarkers plus patterns/follow-ups based on current payload sizes; if real-world reports overrun we'll switch to `google/gemini-2.5-pro` for the analysis call only.
-
-Derived biomarkers (HOMA-IR, Anion Gap) are computed client-side after the AI returns, so the model isn't asked to do arithmetic. They're inserted into the `biomarkers` array with `category: "metabolic"` / `"electrolyte"`, a fixed reference range, and a short `plainEnglish` line, then they participate in pattern rendering like any other marker.
-
-## Out of scope (deferred to Sprint 5+)
-
-Tier C (cardiac, pancreatic, hormones, nutritional, autoimmune, tumour markers) and Tier D (risk-scoring engine, trend deterioration, clinician-assist mode). Those need their own planning round once the Tier A/B foundation is shipped and we've seen real reports flow through the new pattern pipeline.
+The X-Ray vision path will use `google/gemini-2.5-pro` because flash-class models miss subtle radiographic findings. This costs more per analysis than the lab report flow. Confirm that's acceptable, or I can fall back to `gemini-2.5-flash` for X-Ray as well.

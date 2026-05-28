@@ -175,6 +175,28 @@ export function buildSampleResult(): AnalysisResult {
       "Are there dietary changes specific to my iron and Vitamin D status you'd recommend before starting supplements?",
     ],
     contentWarning: null,
+    detectedPatterns: [
+      {
+        name: "iron_deficiency_anaemia",
+        biomarkersInvolved: ["Haemoglobin", "MCV", "MCH"],
+        plainEnglish:
+          "Low haemoglobin alongside low MCV and low MCH is the classic pattern for iron-deficiency anaemia — your red cells are smaller and paler than normal.",
+        severity: "flagged",
+      },
+    ],
+    followUpTests: [
+      {
+        test: "Ferritin, Serum Iron, TIBC",
+        reason:
+          "To confirm iron deficiency suggested by your Hb/MCV/MCH pattern",
+        urgency: "soon",
+      },
+      {
+        test: "Free T4 and anti-TPO antibodies",
+        reason: "To complete the thyroid picture after a mildly elevated TSH",
+        urgency: "routine",
+      },
+    ],
   };
 }
 

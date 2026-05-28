@@ -249,7 +249,27 @@ function ResultsPage() {
 
       <InsightsSection result={analysisResult} />
 
-      <ResultsFlowGraphic result={analysisResult} counts={statusCounts} />
+      <ResultsFlowGraphic
+        result={analysisResult}
+        counts={statusCounts}
+        onOpenShareModal={() => setShareOpen(true)}
+        onShareWhatsApp={() => {
+          const { patientName, reportDate } = analysisResult.metadata;
+          const title = patientName
+            ? `${patientName}'s lab report on ReportRx`
+            : "My lab report analysis on ReportRx";
+          const lines = [
+            title,
+            ``,
+            `📊 ${statusCounts.normal} Normal · ${statusCounts.watch} To watch · ${statusCounts.flagged} Flagged`,
+            reportDate ? `📅 ${reportDate}` : "",
+            ``,
+            `Get your own report decoded at ${window.location.origin}`,
+          ];
+          const text = encodeURIComponent(lines.filter(Boolean).join("\n"));
+          window.open(`https://wa.me/?text=${text}`, "_blank");
+        }}
+      />
 
       <div className="rounded-card bg-brand-coral-light/60 border border-brand-coral-light p-4 flex items-start gap-3 text-[13px] text-brand-dark">
         <AlertTriangle

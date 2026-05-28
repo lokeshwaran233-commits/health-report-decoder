@@ -6,6 +6,12 @@ export type BiomarkerCategory =
   | "thyroid"
   | "metabolic"
   | "vitamin"
+  | "cardio"
+  | "coagulation"
+  | "electrolyte"
+  | "inflammation"
+  | "urine"
+  | "bloodgas"
   | "other";
 
 export interface ReferenceRange {
@@ -24,6 +30,10 @@ export interface Biomarker {
   category: BiomarkerCategory;
   plainEnglish: string;
   deepExplanation: string;
+  /** Set true for non-negotiable critical values requiring urgent attention. */
+  criticalFlag?: boolean;
+  /** True when computed client-side (e.g. HOMA-IR, Anion Gap). */
+  derived?: boolean;
 }
 
 export interface ReportMetadata {
@@ -33,6 +43,22 @@ export interface ReportMetadata {
   uploadedAt: string;
 }
 
+export type PatternSeverity = "informational" | "watch" | "flagged" | "critical";
+export type FollowUpUrgency = "urgent" | "soon" | "routine";
+
+export interface DetectedPattern {
+  name: string;
+  biomarkersInvolved: string[];
+  plainEnglish: string;
+  severity: PatternSeverity;
+}
+
+export interface FollowUpTest {
+  test: string;
+  reason: string;
+  urgency: FollowUpUrgency;
+}
+
 export interface AnalysisResult {
   id: string;
   metadata: ReportMetadata;
@@ -40,6 +66,8 @@ export interface AnalysisResult {
   summary: string;
   doctorQuestions: string[];
   contentWarning: string | null;
+  detectedPatterns: DetectedPattern[];
+  followUpTests: FollowUpTest[];
 }
 
 export type UploadStatus =

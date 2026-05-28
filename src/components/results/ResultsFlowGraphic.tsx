@@ -6,6 +6,8 @@ import { uploadStore } from "@/lib/uploadStore";
 interface Props {
   result: AnalysisResult;
   counts: { normal: number; watch: number; flagged: number };
+  onShareWhatsApp?: () => void;
+  onOpenShareModal?: () => void;
 }
 
 const CATEGORY_LABELS: Record<string, string> = {

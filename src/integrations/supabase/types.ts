@@ -56,6 +56,60 @@ export type Database = {
         }
         Relationships: []
       }
+      scan_results: {
+        Row: {
+          ai_confidence_note: string | null
+          body_region: string | null
+          cannot_assess: Json | null
+          clinical_context: string | null
+          created_at: string
+          critical_alerts: Json | null
+          id: string
+          image_quality: string | null
+          indeterminate: Json | null
+          language: string | null
+          layman_output: Json
+          modality: string
+          professional_output: Json
+          urgency: string | null
+          user_id: string
+        }
+        Insert: {
+          ai_confidence_note?: string | null
+          body_region?: string | null
+          cannot_assess?: Json | null
+          clinical_context?: string | null
+          created_at?: string
+          critical_alerts?: Json | null
+          id?: string
+          image_quality?: string | null
+          indeterminate?: Json | null
+          language?: string | null
+          layman_output: Json
+          modality: string
+          professional_output: Json
+          urgency?: string | null
+          user_id: string
+        }
+        Update: {
+          ai_confidence_note?: string | null
+          body_region?: string | null
+          cannot_assess?: Json | null
+          clinical_context?: string | null
+          created_at?: string
+          critical_alerts?: Json | null
+          id?: string
+          image_quality?: string | null
+          indeterminate?: Json | null
+          language?: string | null
+          layman_output?: Json
+          modality?: string
+          professional_output?: Json
+          urgency?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       share_tokens: {
         Row: {
           accessed_count: number

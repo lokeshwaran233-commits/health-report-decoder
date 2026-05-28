@@ -1,5 +1,5 @@
 import { motion, useReducedMotion } from "framer-motion";
-import { Check, FileUp, FlaskConical, Sparkles, ClipboardCheck } from "lucide-react";
+import { Check, FileUp, FlaskConical, Sparkles, ClipboardCheck, MessageCircle, Share2 } from "lucide-react";
 import type { AnalysisResult } from "@/types/report";
 import { uploadStore } from "@/lib/uploadStore";
 

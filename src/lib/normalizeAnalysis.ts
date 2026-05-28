@@ -3,6 +3,10 @@ import type {
   Biomarker,
   BiomarkerCategory,
   BiomarkerStatus,
+  DetectedPattern,
+  FollowUpTest,
+  FollowUpUrgency,
+  PatternSeverity,
 } from "@/types/report";
 
 const STATUS_VALUES: BiomarkerStatus[] = ["normal", "watch", "flagged"];
@@ -13,8 +17,21 @@ const CATEGORY_VALUES: BiomarkerCategory[] = [
   "thyroid",
   "metabolic",
   "vitamin",
+  "cardio",
+  "coagulation",
+  "electrolyte",
+  "inflammation",
+  "urine",
+  "bloodgas",
   "other",
 ];
+const SEVERITY_VALUES: PatternSeverity[] = [
+  "informational",
+  "watch",
+  "flagged",
+  "critical",
+];
+const URGENCY_VALUES: FollowUpUrgency[] = ["urgent", "soon", "routine"];
 
 function clampNumber(n: unknown, fallback = 0): number {
   const v = typeof n === "number" ? n : Number(n);
@@ -34,6 +51,18 @@ function clampCategory(c: unknown): BiomarkerCategory {
     : "other";
 }
 
+function clampSeverity(s: unknown): PatternSeverity {
+  return SEVERITY_VALUES.includes(s as PatternSeverity)
+    ? (s as PatternSeverity)
+    : "informational";
+}
+
+function clampUrgency(u: unknown): FollowUpUrgency {
+  return URGENCY_VALUES.includes(u as FollowUpUrgency)
+    ? (u as FollowUpUrgency)
+    : "routine";
+}
+
 function makeId(prefix = "rep"): string {
   return `${prefix}-${Date.now().toString(36)}-${Math.random()
     .toString(36)
@@ -50,6 +79,20 @@ interface RawBiomarker {
   category?: unknown;
   plainEnglish?: unknown;
   deepExplanation?: unknown;
+  criticalFlag?: unknown;
+}
+
+interface RawPattern {
+  name?: unknown;
+  biomarkersInvolved?: unknown;
+  plainEnglish?: unknown;
+  severity?: unknown;
+}
+
+interface RawFollowUp {
+  test?: unknown;
+  reason?: unknown;
+  urgency?: unknown;
 }
 
 interface RawAnalysis {
@@ -62,6 +105,47 @@ interface RawAnalysis {
   summary?: unknown;
   doctorQuestions?: unknown;
   contentWarning?: unknown;
+  detectedPatterns?: RawPattern[];
+  followUpTests?: RawFollowUp[];
+}
+
+function normalizePatterns(raw: unknown): DetectedPattern[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((p): DetectedPattern | null => {
+      const r = (p ?? {}) as RawPattern;
+      const name = typeof r.name === "string" ? r.name : "";
+      const plainEnglish =
+        typeof r.plainEnglish === "string" ? r.plainEnglish : "";
+      if (!name || !plainEnglish) return null;
+      const involved = Array.isArray(r.biomarkersInvolved)
+        ? r.biomarkersInvolved.filter((x): x is string => typeof x === "string")
+        : [];
+      return {
+        name,
+        biomarkersInvolved: involved,
+        plainEnglish,
+        severity: clampSeverity(r.severity),
+      };
+    })
+    .filter((x): x is DetectedPattern => x !== null);
+}
+
+function normalizeFollowUps(raw: unknown): FollowUpTest[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((f): FollowUpTest | null => {
+      const r = (f ?? {}) as RawFollowUp;
+      const test = typeof r.test === "string" ? r.test : "";
+      const reason = typeof r.reason === "string" ? r.reason : "";
+      if (!test) return null;
+      return {
+        test,
+        reason,
+        urgency: clampUrgency(r.urgency),
+      };
+    })
+    .filter((x): x is FollowUpTest => x !== null);
 }
 
 export function normalizeAnalysisResult(raw: unknown): AnalysisResult {
@@ -89,6 +173,7 @@ export function normalizeAnalysisResult(raw: unknown): AnalysisResult {
             typeof b.plainEnglish === "string" ? b.plainEnglish : "",
           deepExplanation:
             typeof b.deepExplanation === "string" ? b.deepExplanation : "",
+          criticalFlag: b.criticalFlag === true,
         };
       })
     : [];
@@ -120,6 +205,8 @@ export function normalizeAnalysisResult(raw: unknown): AnalysisResult {
       typeof r.contentWarning === "string" && r.contentWarning.trim().length > 0
         ? r.contentWarning
         : null,
+    detectedPatterns: normalizePatterns(r.detectedPatterns),
+    followUpTests: normalizeFollowUps(r.followUpTests),
   };
 }
 

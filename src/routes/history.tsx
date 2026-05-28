@@ -98,6 +98,8 @@ function HistoryPage() {
       summary: r.summary ?? "",
       doctorQuestions: (r.doctor_questions as string[]) ?? [],
       contentWarning: r.content_warning ?? null,
+      detectedPatterns: [],
+      followUpTests: [],
     }),
   );
   const seen = new Set<string>();

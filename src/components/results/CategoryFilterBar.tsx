@@ -9,6 +9,12 @@ const ORDER: BiomarkerCategory[] = [
   "thyroid",
   "metabolic",
   "vitamin",
+  "cardio",
+  "coagulation",
+  "electrolyte",
+  "inflammation",
+  "urine",
+  "bloodgas",
   "other",
 ];
 
@@ -20,6 +26,12 @@ const LABEL: Record<BiomarkerCategory | "all", string> = {
   thyroid: "Thyroid",
   metabolic: "Metabolic",
   vitamin: "Vitamin",
+  cardio: "Cardio",
+  coagulation: "Coagulation",
+  electrolyte: "Electrolytes",
+  inflammation: "Inflammation",
+  urine: "Urine",
+  bloodgas: "Blood gas",
   other: "Other",
 };
 

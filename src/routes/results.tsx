@@ -14,6 +14,9 @@ import { ShareModal } from "@/components/results/ShareModal";
 import { SavedBanner } from "@/components/results/SavedBanner";
 import { MixedContentBanner } from "@/components/results/MixedContentBanner";
 import { ResultsFlowGraphic } from "@/components/results/ResultsFlowGraphic";
+import { CriticalValuesBanner } from "@/components/results/CriticalValuesBanner";
+import { PatternsSection } from "@/components/results/PatternsSection";
+import { FollowUpTestsSection } from "@/components/results/FollowUpTestsSection";
 import { useReportAnalysis } from "@/hooks/useReportAnalysis";
 import { uploadStore } from "@/lib/uploadStore";
 import { decodeShare } from "@/lib/shareCodec";
@@ -222,6 +225,7 @@ function ResultsPage() {
       {analysisResult.contentWarning && (
         <MixedContentBanner message={analysisResult.contentWarning} />
       )}
+      <CriticalValuesBanner result={analysisResult} />
       <HealthScoreCard result={analysisResult} counts={statusCounts} />
       <ResultsHeader
         result={analysisResult}
@@ -248,6 +252,10 @@ function ResultsPage() {
       </div>
 
       <InsightsSection result={analysisResult} />
+
+      <PatternsSection patterns={analysisResult.detectedPatterns} />
+
+      <FollowUpTestsSection tests={analysisResult.followUpTests} />
 
       <ResultsFlowGraphic
         result={analysisResult}

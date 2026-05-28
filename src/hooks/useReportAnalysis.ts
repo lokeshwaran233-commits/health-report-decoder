@@ -61,10 +61,13 @@ export function useReportAnalysis(): UseReportAnalysisReturn {
         setState("success");
         if (!uploadStore.isSampleMode() && !uploadStore.isHistoryView()) {
           toast.success(t("history.savedToast"));
-          // Best-effort cloud sync if signed in
+          // Best-effort cloud sync if signed in. Clone to a plain object so
+          // the serializer never sees non-enumerable/proxy props as undefined.
+          const payload = JSON.parse(JSON.stringify(result)) as AnalysisResult;
           void supabase.auth.getSession().then(({ data }) => {
             if (!data.session) return;
-            saveFn({ data: { result } }).catch(() => {
+            saveFn({ data: { result: payload } }).catch((err) => {
+              console.error("[saveReport] cloud sync failed", err);
               /* silent; localStorage already has it */
             });
           });

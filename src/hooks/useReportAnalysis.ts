@@ -79,6 +79,7 @@ export function useReportAnalysis(): UseReportAnalysisReturn {
           e instanceof Error
             ? e.message
             : "Something went wrong. Please try again.";
+        console.error("[analyzeReport]", code, message, e);
         setError({ code, message });
         setState("error");
       }

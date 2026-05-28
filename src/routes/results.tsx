@@ -13,6 +13,7 @@ import { InsightsSection } from "@/components/results/InsightsSection";
 import { ShareModal } from "@/components/results/ShareModal";
 import { SavedBanner } from "@/components/results/SavedBanner";
 import { MixedContentBanner } from "@/components/results/MixedContentBanner";
+import { ResultsFlowGraphic } from "@/components/results/ResultsFlowGraphic";
 import { useReportAnalysis } from "@/hooks/useReportAnalysis";
 import { uploadStore } from "@/lib/uploadStore";
 import { decodeShare } from "@/lib/shareCodec";
@@ -247,6 +248,8 @@ function ResultsPage() {
       </div>
 
       <InsightsSection result={analysisResult} />
+
+      <ResultsFlowGraphic result={analysisResult} counts={statusCounts} />
 
       <div className="rounded-card bg-brand-coral-light/60 border border-brand-coral-light p-4 flex items-start gap-3 text-[13px] text-brand-dark">
         <AlertTriangle

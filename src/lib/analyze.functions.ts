@@ -100,7 +100,8 @@ export const analyzeReport = createServerFn({ method: "POST" })
   .handler(async ({ data }): Promise<AnalysisResult> => {
     const apiKey = process.env.LOVABLE_API_KEY;
     if (!apiKey) {
-      fail("API_ERROR", "AI service is not configured. Please try again later.");
+      console.error("[analyzeReport] LOVABLE_API_KEY is not configured on the server");
+      fail("API_ERROR", "AI service is not configured on the server. Please contact support.");
     }
 
     const userMessage =

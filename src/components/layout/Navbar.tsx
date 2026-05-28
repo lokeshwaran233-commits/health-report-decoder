@@ -203,20 +203,21 @@ export function Navbar() {
                   setAuthTab("signin");
                   setAuthOpen(true);
                 }}
-                className="text-sm text-brand-muted hover:text-brand-dark transition-colors px-2"
+                className="text-sm font-medium text-brand-dark hover:text-brand-teal transition-colors px-2"
               >
                 {t("nav.signIn")}
               </button>
-              <Button
-                variant="secondary"
-                size="sm"
+              <button
+                type="button"
+                aria-label="Create a free account"
                 onClick={() => {
                   setAuthTab("signup");
                   setAuthOpen(true);
                 }}
+                className="inline-flex items-center justify-center h-9 px-4 rounded-pill border-2 border-brand-teal text-sm font-semibold text-brand-teal bg-white hover:bg-brand-teal hover:text-white transition-colors"
               >
                 {t("nav.signUp")}
-              </Button>
+              </button>
             </>
           )}
           {!loading && user && <UserMenu />}
@@ -279,18 +280,10 @@ export function Navbar() {
                 ),
               )}
               {!loading && !user && (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setMobileOpen(false);
-                      setAuthTab("signin");
-                      setAuthOpen(true);
-                    }}
-                    className="text-left text-sm text-brand-dark py-2 min-h-11"
-                  >
-                    {t("nav.signIn")}
-                  </button>
+                <div className="mt-2 mb-1 rounded-card border border-brand-teal-light bg-brand-teal-light/40 p-3 space-y-2">
+                  <p className="text-[12px] text-brand-teal font-medium">
+                    New to ReportRx?
+                  </p>
                   <button
                     type="button"
                     onClick={() => {
@@ -298,11 +291,22 @@ export function Navbar() {
                       setAuthTab("signup");
                       setAuthOpen(true);
                     }}
-                    className="text-left text-sm text-brand-teal font-medium py-2 min-h-11"
+                    className="w-full h-11 rounded-btn bg-brand-teal text-white text-sm font-semibold hover:opacity-90 transition-opacity"
                   >
-                    {t("nav.signUp")}
+                    {t("nav.signUp")} — it's free
                   </button>
-                </>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMobileOpen(false);
+                      setAuthTab("signin");
+                      setAuthOpen(true);
+                    }}
+                    className="w-full text-center text-[13px] text-brand-teal hover:underline py-1"
+                  >
+                    Already have an account? {t("nav.signIn")}
+                  </button>
+                </div>
               )}
               {!loading && user && (
                 <button

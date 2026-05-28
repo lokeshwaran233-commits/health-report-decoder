@@ -253,6 +253,10 @@ function ResultsPage() {
 
       <InsightsSection result={analysisResult} />
 
+      <PatternsSection patterns={analysisResult.detectedPatterns} />
+
+      <FollowUpTestsSection tests={analysisResult.followUpTests} />
+
       <ResultsFlowGraphic
         result={analysisResult}
         counts={statusCounts}

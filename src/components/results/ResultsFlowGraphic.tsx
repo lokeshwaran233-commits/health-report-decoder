@@ -20,7 +20,7 @@ const CATEGORY_LABELS: Record<string, string> = {
   other: "Other",
 };
 
-export function ResultsFlowGraphic({ result, counts }: Props) {
+export function ResultsFlowGraphic({ result, counts, onShareWhatsApp, onOpenShareModal }: Props) {
   const reduce = useReducedMotion();
   const meta = uploadStore.getFileMeta();
   const total = counts.normal + counts.watch + counts.flagged || 1;

@@ -224,7 +224,7 @@ export const analyzeReport = createServerFn({ method: "POST" })
           body: JSON.stringify({
             model: "google/gemini-2.5-flash",
             temperature: 0.1,
-            max_tokens: 4000,
+            max_tokens: 6000,
             messages: [
               { role: "system", content: SYSTEM_PROMPT + buildLanguageInstruction(data.language) },
               userMessage,
@@ -282,5 +282,5 @@ export const analyzeReport = createServerFn({ method: "POST" })
         "Could not extract any biomarker values from this report. Please try pasting the text manually.",
       );
     }
-    return normalized;
+    return withDerivedBiomarkers(normalized);
   });

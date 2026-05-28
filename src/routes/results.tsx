@@ -225,6 +225,7 @@ function ResultsPage() {
       {analysisResult.contentWarning && (
         <MixedContentBanner message={analysisResult.contentWarning} />
       )}
+      <CriticalValuesBanner result={analysisResult} />
       <HealthScoreCard result={analysisResult} counts={statusCounts} />
       <ResultsHeader
         result={analysisResult}

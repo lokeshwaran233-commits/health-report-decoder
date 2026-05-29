@@ -1,12 +1,20 @@
 import { useEffect, useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { ArrowLeft } from "lucide-react";
+import { useServerFn } from "@tanstack/react-start";
+import { ArrowLeft, Loader2 } from "lucide-react";
+import { z } from "zod";
 import { Button } from "@/components/rx/Button";
 import { ScanResultView } from "@/components/scan/ScanResultView";
 import { scanStore } from "@/lib/scanStore";
+import { getScan } from "@/lib/scanCloudSync.functions";
 import type { ScanInterpretationResult } from "@/types/scan";
 
+const searchSchema = z.object({
+  id: z.string().uuid().optional(),
+});
+
 export const Route = createFileRoute("/scan-results")({
+  validateSearch: (s) => searchSchema.parse(s),
   head: () => ({
     meta: [
       { title: "Scan Interpretation — ReportRx" },
@@ -18,18 +26,59 @@ export const Route = createFileRoute("/scan-results")({
 
 function ScanResultsPage() {
   const navigate = useNavigate();
+  const { id } = Route.useSearch();
+  const getScanFn = useServerFn(getScan);
   const [result, setResult] = useState<ScanInterpretationResult | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const r = scanStore.getLastResult();
-    if (!r) {
-      void navigate({ to: "/scan" });
+    let alive = true;
+    const fromStore = scanStore.getLastResult();
+    if (fromStore && (!id || fromStore.id === id)) {
+      setResult(fromStore);
+      setLoading(false);
       return;
     }
-    setResult(r);
-  }, [navigate]);
+    if (id) {
+      getScanFn({ data: { id } })
+        .then((r) => {
+          if (!alive) return;
+          setResult(r.scan);
+          scanStore.setLastResult(r.scan);
+        })
+        .catch((e) => {
+          if (!alive) return;
+          setError(e instanceof Error ? e.message : "Could not load scan.");
+        })
+        .finally(() => alive && setLoading(false));
+    } else {
+      void navigate({ to: "/scan" });
+    }
+    return () => {
+      alive = false;
+    };
+  }, [id, getScanFn, navigate]);
 
-  if (!result) return null;
+  if (loading) {
+    return (
+      <div className="mx-auto max-w-3xl px-4 md:px-6 pt-32 pb-16 flex items-center gap-3 text-brand-muted">
+        <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+        Loading interpretation…
+      </div>
+    );
+  }
+
+  if (error || !result) {
+    return (
+      <div className="mx-auto max-w-3xl px-4 md:px-6 pt-32 pb-16 space-y-4">
+        <p className="text-sm text-brand-dark">{error ?? "No interpretation found."}</p>
+        <Link to="/scan">
+          <Button variant="primary" size="md">Start a new scan</Button>
+        </Link>
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto max-w-3xl px-4 md:px-6 pt-24 pb-16">
@@ -39,7 +88,7 @@ function ScanResultsPage() {
           Analyse another scan
         </Link>
         <div className="text-xs text-brand-muted">
-          {new Date(result.createdAt).toLocaleString()} · {result.modality.replace("_", " ")} · {result.bodyRegion.replace("_", " ")}
+          {new Date(result.createdAt).toLocaleString()} · {result.modality.replace(/_/g, " ")} · {result.bodyRegion.replace(/_/g, " ")}
         </div>
       </div>
 

@@ -1,7 +1,7 @@
-// Scan Decoder types. Sprints 1–3 enable only X-Ray vision + report-text paths;
-// other modalities are present in the union for the UI roadmap but disabled.
+// Scan Decoder types. Sprints 1–3+ enable all modality picks; image-capable
+// modalities go through the vision model, report_text uses chat model.
 
-export type ScanModality =
+export type ImageScanModality =
   | "xray"
   | "ct"
   | "mri"
@@ -13,8 +13,9 @@ export type ScanModality =
   | "mammogram"
   | "dexa"
   | "angiography"
-  | "nuclear"
-  | "report_text";
+  | "nuclear";
+
+export type ScanModality = ImageScanModality | "report_text";
 
 export type BodyRegion =
   | "head_brain"
@@ -118,6 +119,14 @@ export interface ScanAnalysisError {
   message: string;
 }
 
+export interface ScanExtraContext {
+  contrastUsed?: boolean | null;
+  sequences?: string | null;
+  ultrasoundType?: string | null;
+  echoType?: string | null;
+  isPregnant?: boolean | null;
+}
+
 export type ScanInput =
   | {
       type: "report_text";
@@ -127,10 +136,12 @@ export type ScanInput =
       language?: string;
     }
   | {
-      type: "xray_image";
+      type: "scan_image";
+      modality: ImageScanModality;
       content: string; // base64 (no data URL prefix)
       mimeType: string;
       bodyRegion: BodyRegion;
       clinicalContext?: string | null;
       language?: string;
+      extra?: ScanExtraContext;
     };

@@ -15,12 +15,12 @@ import type {
 } from "@/types/scan";
 
 /** Words that must never appear as standalone assertions in layman output. */
-const BANNED_WORDS = [
-  /\bdefinitely\b/gi,
-  /\bcertainly\b/gi,
-  /\bconfirms?\b/gi,
-  /\bproves?\b/gi,
-  /\brules? out\b/gi,
+const BANNED_REPLACEMENTS: Array<[RegExp, string]> = [
+  [/\bdefinitely\b/gi, "likely"],
+  [/\bcertainly\b/gi, "likely"],
+  [/\bconfirms?\b/gi, "suggests"],
+  [/\bproves?\b/gi, "suggests"],
+  [/\brules? out\b/gi, "makes less likely"],
 ];
 
 const MODALITIES: ScanModality[] = [
@@ -90,7 +90,7 @@ function pick<T extends string>(v: unknown, allowed: T[], fallback: T): T {
 
 function sanitiseLayman(text: string): string {
   let out = text;
-  for (const re of BANNED_WORDS) out = out.replace(re, "may suggest");
+  for (const [re, replacement] of BANNED_REPLACEMENTS) out = out.replace(re, replacement);
   // never use the word "cancer" as a standalone term in layman text
   out = out.replace(
     /\bcancer\b/gi,

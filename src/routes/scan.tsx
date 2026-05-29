@@ -8,8 +8,14 @@ import { ModalityPicker } from "@/components/scan/ModalityPicker";
 import { analyzeScan } from "@/lib/scanAnalysis.functions";
 import { saveScan } from "@/lib/scanCloudSync.functions";
 import { scanStore } from "@/lib/scanStore";
+import { extractTextFromPDF } from "@/lib/pdfExtract";
 import { useAuth } from "@/hooks/useAuth";
-import type { BodyRegion, ScanModality } from "@/types/scan";
+import type {
+  BodyRegion,
+  ImageScanModality,
+  ScanExtraContext,
+  ScanModality,
+} from "@/types/scan";
 
 export const Route = createFileRoute("/scan")({
   head: () => ({
@@ -18,13 +24,13 @@ export const Route = createFileRoute("/scan")({
       {
         name: "description",
         content:
-          "Upload an X-Ray or paste a scan report. Get a plain-English explanation and a professional radiology-style read — reviewed and structured by AI.",
+          "Upload an X-Ray, CT, MRI, Ultrasound, ECG, mammogram, DEXA or any scan image — or paste a scan report. Get a plain-English explanation and a professional radiology-style read.",
       },
       { property: "og:title", content: "Scan Decoder — ReportRx" },
       {
         property: "og:description",
         content:
-          "AI-assisted interpretation of X-Ray images and scan reports, with explicit limitations and clinical review reminders.",
+          "AI-assisted interpretation of medical imaging across modalities, with explicit limitations and clinical review reminders.",
       },
     ],
   }),
@@ -33,20 +39,47 @@ export const Route = createFileRoute("/scan")({
 
 const REGIONS: { id: BodyRegion; label: string }[] = [
   { id: "chest_lungs", label: "Chest / Lungs" },
+  { id: "heart_cardiac", label: "Heart" },
   { id: "musculoskeletal", label: "Bone / Joint" },
   { id: "abdomen", label: "Abdomen" },
   { id: "pelvis", label: "Pelvis" },
   { id: "spine", label: "Spine" },
   { id: "head_brain", label: "Head / Brain" },
-  { id: "neck_thyroid", label: "Neck" },
+  { id: "neck_thyroid", label: "Neck / Thyroid" },
   { id: "breast", label: "Breast" },
   { id: "vascular", label: "Vascular" },
+  { id: "obstetric", label: "Obstetric" },
   { id: "whole_body", label: "Whole body" },
   { id: "unknown", label: "Other / not sure" },
 ];
 
-const MAX_IMAGE_MB = 8;
+const MAX_IMAGE_MB = 12;
 const MAX_TEXT_CHARS = 50000;
+
+const IMAGE_MODALITY_LABEL: Record<ImageScanModality, string> = {
+  xray: "X-Ray image",
+  ct: "CT slice / series image",
+  mri: "MRI image",
+  ultrasound: "Ultrasound image",
+  echo: "Echocardiogram still",
+  ecg: "ECG strip photo",
+  eeg: "EEG tracing image",
+  pet: "PET / PET-CT image",
+  mammogram: "Mammogram image",
+  dexa: "DEXA report image",
+  angiography: "Angiogram image",
+  nuclear: "Nuclear medicine image",
+};
+
+const SAFETY_NOTE: Partial<Record<ImageScanModality, string>> = {
+  ecg: "Use a clear, well-lit photo of the full 12-lead printout — calibration markers visible.",
+  ct: "Single slices give a limited view. Consider also pasting the radiologist's report text for completeness.",
+  mri: "Single slices give a limited view. Consider also pasting the radiologist's report text for completeness.",
+  ultrasound: "Static frames lose Doppler / motion information — report text is more reliable.",
+  echo: "Static stills lose colour Doppler — for a complete read, paste the echo report text.",
+  mammogram: "Photographing a hardcopy reduces resolution. Pasting the BI-RADS report text gives a better read.",
+  dexa: "DEXA is mostly numbers — pasting the printed T-/Z-scores will give a more accurate interpretation.",
+};
 
 function fileToBase64(file: File): Promise<{ b64: string; mime: string }> {
   return new Promise((res, rej) => {
@@ -75,16 +108,25 @@ function ScanPage() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Modality-specific extras
+  const [contrastUsed, setContrastUsed] = useState<"" | "yes" | "no">("");
+  const [sequences, setSequences] = useState("");
+  const [isPregnant, setIsPregnant] = useState(false);
+  const [echoType, setEchoType] = useState("");
+
   const fileRef = useRef<HTMLInputElement>(null);
+  const textFileRef = useRef<HTMLInputElement>(null);
 
-  const isImageMode = modality === "xray";
   const isTextMode = modality === "report_text";
+  const isImageMode = modality != null && modality !== "report_text";
+  const imageModality = isImageMode ? (modality as ImageScanModality) : null;
 
-  const handlePickFile = (f: File | null) => {
+  const handlePickImage = (f: File | null) => {
     setError(null);
     if (!f) { setFile(null); setPreviewUrl(null); return; }
     if (!f.type.startsWith("image/")) {
-      setError("Please upload a JPG or PNG image of the X-Ray.");
+      setError("Please upload a JPG or PNG image of the scan.");
       return;
     }
     if (f.size > MAX_IMAGE_MB * 1024 * 1024) {
@@ -95,11 +137,48 @@ function ScanPage() {
     setPreviewUrl(URL.createObjectURL(f));
   };
 
+  const handlePickPdf = async (f: File | null) => {
+    setError(null);
+    if (!f) return;
+    if (f.type !== "application/pdf") {
+      setError("Please upload a PDF, or paste the report text directly.");
+      return;
+    }
+    try {
+      setLoading(true);
+      const text = await extractTextFromPDF(f);
+      setReportText(text.slice(0, MAX_TEXT_CHARS));
+      toast.success("PDF text extracted.");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Couldn't read PDF.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const canSubmit =
     !loading &&
     !!modality &&
     ((isImageMode && !!file) ||
       (isTextMode && reportText.trim().length >= 20));
+
+  const buildExtra = (): ScanExtraContext | undefined => {
+    if (!imageModality) return undefined;
+    const e: ScanExtraContext = {};
+    if ((imageModality === "ct" || imageModality === "mri") && contrastUsed) {
+      e.contrastUsed = contrastUsed === "yes";
+    }
+    if (imageModality === "mri" && sequences.trim()) {
+      e.sequences = sequences.trim().slice(0, 500);
+    }
+    if (imageModality === "ultrasound" && isPregnant) {
+      e.isPregnant = true;
+    }
+    if (imageModality === "echo" && echoType.trim()) {
+      e.echoType = echoType.trim().slice(0, 200);
+    }
+    return Object.keys(e).length ? e : undefined;
+  };
 
   const handleSubmit = async () => {
     if (!canSubmit || !modality) return;
@@ -107,16 +186,18 @@ function ScanPage() {
     setLoading(true);
     try {
       let result;
-      if (isImageMode && file) {
+      if (isImageMode && file && imageModality) {
         const { b64, mime } = await fileToBase64(file);
         result = await analyze({
           data: {
-            type: "xray_image",
+            type: "scan_image",
+            modality: imageModality,
             content: b64,
             mimeType: mime,
             bodyRegion: region,
             clinicalContext: context.trim() || null,
             language: "en",
+            extra: buildExtra(),
           },
         });
       } else if (isTextMode) {
@@ -161,9 +242,10 @@ function ScanPage() {
           Scan Decoder
         </h1>
         <p className="text-brand-muted max-w-2xl">
-          Get a structured, honest read of an X-Ray image or a written scan report.
-          You'll see both a patient-friendly summary and a professional impression
-          — with explicit limitations.
+          Get a structured, honest read of a scan image (X-Ray, CT, MRI, Ultrasound,
+          ECG, Echo, mammogram, DEXA and more) or a written scan report. You'll see
+          both a patient-friendly summary and a professional impression — with explicit
+          limitations.
         </p>
       </header>
 
@@ -177,14 +259,28 @@ function ScanPage() {
         <h2 className="text-sm font-semibold text-brand-dark mb-3">
           1. Choose what you'd like to interpret
         </h2>
-        <ModalityPicker value={modality} onChange={(m) => { setModality(m); setError(null); }} />
+        <ModalityPicker
+          value={modality}
+          onChange={(m) => {
+            setModality(m);
+            setError(null);
+            setFile(null);
+            setPreviewUrl(null);
+          }}
+        />
       </section>
 
       {modality && (
         <section className="rounded-card border border-brand-border bg-white p-5 space-y-5">
           <h2 className="text-sm font-semibold text-brand-dark">
-            2. Provide the {isImageMode ? "X-Ray image" : "scan report text"}
+            2. Provide the {isImageMode && imageModality ? IMAGE_MODALITY_LABEL[imageModality] : "scan report text"}
           </h2>
+
+          {imageModality && SAFETY_NOTE[imageModality] && (
+            <p className="text-xs text-brand-muted bg-brand-surface rounded-card p-3 border border-brand-border">
+              {SAFETY_NOTE[imageModality]}
+            </p>
+          )}
 
           <div className="grid sm:grid-cols-2 gap-4">
             <label className="block">
@@ -213,20 +309,72 @@ function ScanPage() {
             </label>
           </div>
 
+          {/* Modality-specific extras */}
+          {(imageModality === "ct" || imageModality === "mri") && (
+            <div className="grid sm:grid-cols-2 gap-4">
+              <label className="block">
+                <span className="text-xs text-brand-muted">Contrast given?</span>
+                <select
+                  value={contrastUsed}
+                  onChange={(e) => setContrastUsed(e.target.value as "" | "yes" | "no")}
+                  className="mt-1 w-full h-10 rounded-btn border border-brand-border bg-white px-3 text-sm"
+                >
+                  <option value="">Unknown</option>
+                  <option value="yes">Yes</option>
+                  <option value="no">No</option>
+                </select>
+              </label>
+              {imageModality === "mri" && (
+                <label className="block">
+                  <span className="text-xs text-brand-muted">Sequences shown (optional)</span>
+                  <input
+                    type="text"
+                    value={sequences}
+                    onChange={(e) => setSequences(e.target.value.slice(0, 500))}
+                    placeholder="T1, T2, FLAIR, DWI…"
+                    className="mt-1 w-full h-10 rounded-btn border border-brand-border bg-white px-3 text-sm"
+                  />
+                </label>
+              )}
+            </div>
+          )}
+          {imageModality === "ultrasound" && (
+            <label className="flex items-center gap-2 text-sm text-brand-dark">
+              <input
+                type="checkbox"
+                checked={isPregnant}
+                onChange={(e) => setIsPregnant(e.target.checked)}
+              />
+              Patient is pregnant
+            </label>
+          )}
+          {imageModality === "echo" && (
+            <label className="block">
+              <span className="text-xs text-brand-muted">Echo type (optional)</span>
+              <input
+                type="text"
+                value={echoType}
+                onChange={(e) => setEchoType(e.target.value.slice(0, 200))}
+                placeholder="TTE / TOE / stress echo"
+                className="mt-1 w-full h-10 rounded-btn border border-brand-border bg-white px-3 text-sm"
+              />
+            </label>
+          )}
+
           {isImageMode && (
             <div>
               <input
                 ref={fileRef}
                 type="file"
-                accept="image/png,image/jpeg,image/jpg"
+                accept="image/png,image/jpeg"
                 hidden
-                onChange={(e) => handlePickFile(e.target.files?.[0] ?? null)}
+                onChange={(e) => handlePickImage(e.target.files?.[0] ?? null)}
               />
               {previewUrl ? (
                 <div className="rounded-card border border-brand-border p-3 flex gap-4 items-start">
                   <img
                     src={previewUrl}
-                    alt="X-Ray preview"
+                    alt="Scan preview"
                     className="h-32 w-32 object-cover rounded-md bg-black"
                   />
                   <div className="flex-1 text-sm">
@@ -238,7 +386,7 @@ function ScanPage() {
                     </div>
                     <button
                       type="button"
-                      onClick={() => handlePickFile(null)}
+                      onClick={() => handlePickImage(null)}
                       className="mt-2 text-xs text-brand-coral underline"
                     >
                       Remove
@@ -253,7 +401,7 @@ function ScanPage() {
                 >
                   <Upload className="mx-auto h-6 w-6 text-brand-teal" aria-hidden="true" />
                   <div className="mt-2 text-sm font-medium text-brand-dark">
-                    Upload X-Ray image
+                    Upload scan image
                   </div>
                   <div className="text-xs text-brand-muted">
                     JPG or PNG, up to {MAX_IMAGE_MB} MB
@@ -264,10 +412,27 @@ function ScanPage() {
           )}
 
           {isTextMode && (
-            <div>
+            <div className="space-y-3">
+              <div>
+                <input
+                  ref={textFileRef}
+                  type="file"
+                  accept="application/pdf"
+                  hidden
+                  onChange={(e) => handlePickPdf(e.target.files?.[0] ?? null)}
+                />
+                <button
+                  type="button"
+                  onClick={() => textFileRef.current?.click()}
+                  className="inline-flex items-center gap-2 h-9 px-3 rounded-btn border border-brand-border bg-white text-sm hover:border-brand-teal/60"
+                >
+                  <Upload className="h-4 w-4" aria-hidden="true" />
+                  Upload PDF instead
+                </button>
+              </div>
               <label className="block">
                 <span className="text-xs text-brand-muted">
-                  Paste the scan report text (or a PDF's text content)
+                  Paste the scan report text
                 </span>
                 <textarea
                   value={reportText}

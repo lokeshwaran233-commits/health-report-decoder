@@ -1,7 +1,14 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import type { ScanInterpretationResult } from "@/types/scan";
+import type {
+  BodyRegion,
+  LaymanOutput,
+  ProfessionalOutput,
+  ScanImageQuality,
+  ScanInterpretationResult,
+  ScanModality,
+} from "@/types/scan";
 
 const scanResultSchema = z.object({
   id: z.string(),
@@ -19,6 +26,56 @@ const scanResultSchema = z.object({
   aiConfidenceNote: z.string(),
   createdAt: z.string(),
 });
+
+interface ScanRow {
+  id: string;
+  user_id: string;
+  created_at: string;
+  modality: string;
+  body_region: string | null;
+  clinical_context: string | null;
+  image_quality: string | null;
+  professional_output: unknown;
+  layman_output: unknown;
+  critical_alerts: unknown;
+  indeterminate: unknown;
+  cannot_assess: unknown;
+  urgency: string | null;
+  ai_confidence_note: string | null;
+  language: string | null;
+}
+
+export function rowToScanResult(row: ScanRow): ScanInterpretationResult {
+  const arr = (v: unknown): string[] => (Array.isArray(v) ? (v as string[]) : []);
+  return {
+    id: row.id,
+    modality: (row.modality as ScanModality) ?? "report_text",
+    bodyRegion: (row.body_region as BodyRegion) ?? "unknown",
+    clinicalContext: row.clinical_context,
+    language: row.language ?? "en",
+    imageQuality: (row.image_quality as ScanImageQuality) ?? "adequate",
+    professional: (row.professional_output as ProfessionalOutput) ?? {
+      findings: [],
+      impression: "",
+      differentials: [],
+      recommendations: [],
+      limitations: [],
+      urgency: "routine",
+    },
+    layman: (row.layman_output as LaymanOutput) ?? {
+      summary: "",
+      keyFindings: [],
+      whatThisMeans: "",
+      nextSteps: [],
+      questionsForDoctor: [],
+    },
+    indeterminateFindings: arr(row.indeterminate),
+    criticalAlerts: arr(row.critical_alerts),
+    cannotAssess: arr(row.cannot_assess),
+    aiConfidenceNote: row.ai_confidence_note ?? "",
+    createdAt: row.created_at,
+  };
+}
 
 export const saveScan = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -62,7 +119,24 @@ export const listScans = createServerFn({ method: "GET" })
       .order("created_at", { ascending: false })
       .limit(100);
     if (error) throw new Error(error.message);
-    return { scans: data ?? [] };
+    const scans = (data ?? []).map((r) => rowToScanResult(r as ScanRow));
+    return { scans };
+  });
+
+export const getScan = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({ id: z.string().uuid() }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase } = context;
+    const { data: row, error } = await supabase
+      .from("scan_results")
+      .select("*")
+      .eq("id", data.id)
+      .single();
+    if (error) throw new Error(error.message);
+    return { scan: rowToScanResult(row as ScanRow) };
   });
 
 export const deleteScan = createServerFn({ method: "POST" })

@@ -1,7 +1,9 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { normaliseScanResult } from "@/lib/normalizeScan";
+import { buildScanPrompt } from "@/lib/scanPrompts";
 import type {
+  ImageScanModality,
   ScanAnalysisError,
   ScanInterpretationResult,
 } from "@/types/scan";
@@ -25,6 +27,31 @@ const regionSchema = z.enum([
   "unknown",
 ]);
 
+const imageModalitySchema = z.enum([
+  "xray",
+  "ct",
+  "mri",
+  "ultrasound",
+  "pet",
+  "echo",
+  "eeg",
+  "ecg",
+  "mammogram",
+  "dexa",
+  "angiography",
+  "nuclear",
+]);
+
+const extraSchema = z
+  .object({
+    contrastUsed: z.boolean().nullable().optional(),
+    sequences: z.string().max(500).nullable().optional(),
+    ultrasoundType: z.string().max(200).nullable().optional(),
+    echoType: z.string().max(200).nullable().optional(),
+    isPregnant: z.boolean().nullable().optional(),
+  })
+  .optional();
+
 const inputSchema = z.discriminatedUnion("type", [
   z.object({
     type: z.literal("report_text"),
@@ -34,126 +61,16 @@ const inputSchema = z.discriminatedUnion("type", [
     language: langSchema,
   }),
   z.object({
-    type: z.literal("xray_image"),
+    type: z.literal("scan_image"),
+    modality: imageModalitySchema,
     content: z.string().min(50),
     mimeType: z.string().min(3).max(64),
     bodyRegion: regionSchema,
     clinicalContext: z.string().max(2000).nullable().optional(),
     language: langSchema,
+    extra: extraSchema,
   }),
 ]);
-
-const LANG_NAMES: Record<string, string> = {
-  en: "English",
-  ta: "Tamil (தமிழ்)",
-  hi: "Hindi (हिन्दी)",
-  te: "Telugu (తெలుగు)",
-};
-
-function languageInstruction(lang: string | undefined): string {
-  const code = (lang ?? "en").split("-")[0];
-  if (code === "en") return "";
-  const name = LANG_NAMES[code] ?? "English";
-  return `\n\nLANGUAGE INSTRUCTION:\nWrite the entire "layman" object (summary, keyFindings.plainEnglish, whatThisMeans, nextSteps, questionsForDoctor) in ${name}. Keep the "professional" object, anatomical terms, measurements, and units in English.`;
-}
-
-const HONESTY_HEADER = `You are an AI assistant supporting medical imaging interpretation, with knowledge equivalent to a board-certified radiologist across modalities.
-
-ABSOLUTE RULES — VIOLATIONS ARE UNACCEPTABLE:
-
-1. NEVER hallucinate findings. Only describe what is explicitly visible in the image or stated in the report text. If something is not visible, say "not clearly visualised" or "cannot be adequately assessed".
-2. NEVER make a definitive diagnosis. Use: "appearances are consistent with...", "findings may represent...", "cannot exclude...", "indeterminate — requires further evaluation", "clinical correlation recommended".
-3. NEVER provide percentage probability estimates.
-4. ALWAYS assess image quality FIRST. If inadequate, set imageQuality to "inadequate", populate imageQualityNote, and DO NOT attempt detailed interpretation — return empty findings arrays.
-5. ALWAYS populate "limitations" (what was not assessed: slice thickness, single projection, no contrast, FOV cut-off, etc.) and "cannotAssess".
-6. CRITICAL FINDINGS must populate "criticalAlerts" even if not definitive — flag if it could represent a life-threatening condition.
-7. NEVER downplay a finding to reassure. Accuracy over comfort.
-8. NEVER use the words "definitely", "certainly", "confirms", "proves", "rules out", or "you have cancer" as standalone conclusions.
-9. NO demographic assumptions (age, sex, pregnancy) unless explicitly stated. If significance varies, state so.
-10. If no prior imaging available, add to limitations: "No prior imaging available for comparison. Interval change cannot be assessed."
-
-DIFFERENTIAL LIKELIHOOD must be one of: "possible", "probable", "cannot_exclude". No percentages.
-
-OUTPUT: Return STRICTLY valid JSON matching the schema below. No markdown, no preamble, no text outside the JSON.
-
-{
-  "imageQuality": "adequate" | "suboptimal" | "inadequate",
-  "imageQualityNote": string | null,
-  "professional": {
-    "findings": [{ "location": string, "description": string, "significance": "normal_variant" | "incidental" | "abnormal" | "critical", "characterisation": string }],
-    "impression": string,
-    "differentials": [{ "diagnosis": string, "likelihood": "possible" | "probable" | "cannot_exclude", "supportingFindings": string[], "againstFindings": string[] }],
-    "recommendations": string[],
-    "limitations": string[],
-    "urgency": "routine" | "urgent" | "critical"
-  },
-  "layman": {
-    "summary": string,
-    "keyFindings": [{ "area": string, "plainEnglish": string, "significance": "normal" | "minor" | "significant" | "urgent", "analogy": string | null }],
-    "whatThisMeans": string,
-    "nextSteps": string[],
-    "questionsForDoctor": string[]
-  },
-  "indeterminateFindings": string[],
-  "criticalAlerts": string[],
-  "cannotAssess": string[],
-  "aiConfidenceNote": string
-}`;
-
-const XRAY_BODY = `MODALITY: Plain Radiograph (X-Ray).
-
-X-RAY LIMITATIONS (always include relevant items in "limitations"):
-- 2D projection of 3D anatomy — structures overlap.
-- Low soft-tissue contrast vs CT/MRI.
-- Minimum lesion size for detection ≈ 1 cm.
-- Technical factors (rotation, inspiration, exposure) affect interpretation.
-- Single projection — pathology requiring multiple views may be missed.
-
-CHEST X-RAY systematic review (ABCDE):
-A — Airway: trachea midline, carina angle.
-B — Bones: ribs (count, fractures), clavicles, shoulder, spine.
-C — Cardiac: size (CTR < 0.5), borders, shape.
-D — Diaphragm: level, costophrenic angles, free air below right hemidiaphragm.
-E — Everything else: lung fields by zone, hilar regions, pleura, soft tissues, foreign bodies, lines/tubes.
-
-Lung descriptors: opacification (location/extent/air bronchograms), hyperinflation, pneumothorax (visceral pleural line), pleural effusion (CP angle blunting suggests > 200 mL).
-
-FRACTURE descriptor: "There is a [complete/incomplete] [transverse/oblique/spiral/comminuted] fracture of the [bone] at the [location] with [angulation/displacement/shortening] of [measurement] and [open/closed] pattern."
-
-BONE DENSITY: osteopenia vs osteoporosis is unreliable on plain film — recommend DEXA.
-
-CRITICAL X-RAY FINDINGS — populate criticalAlerts if seen or suspected:
-- Tension pneumothorax (tracheal deviation + absent lung markings)
-- Free air under diaphragm (hollow viscus perforation)
-- Complete traumatic fracture at a weight-bearing site
-- Fracture through growth plate in a child
-- Pathological fracture through lytic lesion
-- Large pleural effusion with mediastinal shift`;
-
-const REPORT_TEXT_BODY = `MODE: Scan REPORT text (the user uploaded a written radiology/scan report, not the image itself).
-
-You are interpreting the radiologist's written report — NOT the image. Your job:
-- Translate the findings into BOTH professional (preserved terminology) and patient-friendly (plain English) outputs.
-- Identify critical alerts, indeterminate findings, recommended follow-ups.
-- Do NOT invent findings beyond what the report states.
-- If the report mentions limitations (e.g., "limited by patient motion"), surface them in "limitations".
-- If the report indicates serious or urgent findings, surface them in "criticalAlerts".
-- Preserve units, measurements, and side (left/right) exactly as written.`;
-
-function buildPrompt(
-  mode: "xray_image" | "report_text",
-  bodyRegion: string,
-  clinicalContext: string | null | undefined,
-  language: string | undefined,
-): string {
-  const modeBody = mode === "xray_image" ? XRAY_BODY : REPORT_TEXT_BODY;
-  return `${HONESTY_HEADER}
-
-${modeBody}
-
-BODY REGION: ${bodyRegion}
-CLINICAL CONTEXT: ${clinicalContext?.trim() ? clinicalContext : "Not provided"}${languageInstruction(language)}`;
-}
 
 function fail(code: ScanAnalysisError["code"], message: string): never {
   const err = new Error(message) as Error & ScanAnalysisError;
@@ -175,6 +92,24 @@ function tryParseJson(raw: string): unknown {
   }
 }
 
+function userInstructionFor(modality: ImageScanModality, bodyRegion: string): string {
+  const niceName: Record<ImageScanModality, string> = {
+    xray: "X-Ray",
+    ct: "CT scan",
+    mri: "MRI",
+    ultrasound: "ultrasound",
+    pet: "PET / PET-CT",
+    echo: "echocardiogram",
+    eeg: "EEG tracing",
+    ecg: "12-lead ECG",
+    mammogram: "mammogram",
+    dexa: "DEXA scan",
+    angiography: "angiogram",
+    nuclear: "nuclear medicine study",
+  };
+  return `This is a ${niceName[modality]} image. Body region: ${bodyRegion}. Interpret per the modality protocol and return the JSON.`;
+}
+
 export const analyzeScan = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => inputSchema.parse(input))
   .handler(async ({ data }): Promise<ScanInterpretationResult> => {
@@ -184,12 +119,17 @@ export const analyzeScan = createServerFn({ method: "POST" })
       fail("API_ERROR", "AI service is not configured on the server.");
     }
 
-    const systemPrompt = buildPrompt(
-      data.type,
-      data.bodyRegion,
-      data.clinicalContext ?? null,
-      data.language,
-    );
+    const modality =
+      data.type === "scan_image" ? data.modality : "report_text";
+
+    const systemPrompt = buildScanPrompt({
+      mode: data.type,
+      modality,
+      bodyRegion: data.bodyRegion,
+      clinicalContext: data.clinicalContext ?? null,
+      language: data.language,
+      extra: data.type === "scan_image" ? data.extra : undefined,
+    });
 
     const userMessage =
       data.type === "report_text"
@@ -205,14 +145,14 @@ export const analyzeScan = createServerFn({ method: "POST" })
               },
               {
                 type: "text" as const,
-                text: `This is an X-Ray image. Body region: ${data.bodyRegion}. Interpret per the X-Ray protocol and return the JSON.`,
+                text: userInstructionFor(data.modality, data.bodyRegion),
               },
             ],
           };
 
-    // X-ray vision needs higher-fidelity model than flash; report-text uses flash for cost.
+    // Image modalities need higher-fidelity vision; report-text uses flash for cost.
     const model =
-      data.type === "xray_image"
+      data.type === "scan_image"
         ? "google/gemini-2.5-pro"
         : "google/gemini-2.5-flash";
 
@@ -270,13 +210,12 @@ export const analyzeScan = createServerFn({ method: "POST" })
       fail("PARSE_ERROR", "We couldn't read the AI response as JSON.");
 
     const result = normaliseScanResult(parsed, {
-      modality: data.type === "xray_image" ? "xray" : "report_text",
+      modality,
       bodyRegion: data.bodyRegion,
       clinicalContext: data.clinicalContext ?? null,
       language: data.language,
     });
 
-    // Short-circuit: if image is inadequate, surface a clear error in UI rather than empty results.
     if (
       result.imageQuality === "inadequate" &&
       result.professional.findings.length === 0

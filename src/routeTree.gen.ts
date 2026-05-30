@@ -13,6 +13,7 @@ import { Route as ScanResultsRouteImport } from './routes/scan-results'
 import { Route as ScanRouteImport } from './routes/scan'
 import { Route as ResultsRouteImport } from './routes/results'
 import { Route as HistoryRouteImport } from './routes/history'
+import { Route as AuthRouteImport } from './routes/auth'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as STokenRouteImport } from './routes/s.$token'
 
@@ -36,6 +37,11 @@ const HistoryRoute = HistoryRouteImport.update({
   path: '/history',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthRoute = AuthRouteImport.update({
+  id: '/auth',
+  path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -49,6 +55,7 @@ const STokenRoute = STokenRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/auth': typeof AuthRoute
   '/history': typeof HistoryRoute
   '/results': typeof ResultsRoute
   '/scan': typeof ScanRoute
@@ -57,6 +64,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/auth': typeof AuthRoute
   '/history': typeof HistoryRoute
   '/results': typeof ResultsRoute
   '/scan': typeof ScanRoute
@@ -66,6 +74,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/auth': typeof AuthRoute
   '/history': typeof HistoryRoute
   '/results': typeof ResultsRoute
   '/scan': typeof ScanRoute
@@ -76,16 +85,25 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/auth'
     | '/history'
     | '/results'
     | '/scan'
     | '/scan-results'
     | '/s/$token'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/history' | '/results' | '/scan' | '/scan-results' | '/s/$token'
+  to:
+    | '/'
+    | '/auth'
+    | '/history'
+    | '/results'
+    | '/scan'
+    | '/scan-results'
+    | '/s/$token'
   id:
     | '__root__'
     | '/'
+    | '/auth'
     | '/history'
     | '/results'
     | '/scan'
@@ -95,6 +113,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AuthRoute: typeof AuthRoute
   HistoryRoute: typeof HistoryRoute
   ResultsRoute: typeof ResultsRoute
   ScanRoute: typeof ScanRoute
@@ -132,6 +151,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof HistoryRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -151,6 +177,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AuthRoute: AuthRoute,
   HistoryRoute: HistoryRoute,
   ResultsRoute: ResultsRoute,
   ScanRoute: ScanRoute,
@@ -160,3 +187,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}

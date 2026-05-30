@@ -109,6 +109,30 @@ export const deleteReport = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+export const deleteReports = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({ ids: z.array(z.string().uuid()).min(1).max(200) }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase } = context;
+    const { error } = await supabase.from("reports").delete().in("id", data.ids);
+    if (error) throw new Error(error.message);
+    return { ok: true, count: data.ids.length };
+  });
+
+export const clearAllReports = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
+    const { error } = await supabase
+      .from("reports")
+      .delete()
+      .eq("user_id", userId);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
 // Public — no auth required. Anyone (signed-in or out) can mint a share token
 // for a snapshot they already see in their own browser.
 export const createShareToken = createServerFn({ method: "POST" })

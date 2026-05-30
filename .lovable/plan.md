@@ -1,68 +1,85 @@
-# Scan Decoder — Full Sprint Completion + All Modalities + Bug Sweep
+# Phase D1 v2 — Plan
 
-## Goal
+Scope: §8 hero panel, §9 share fix, §10 report history removal, §11 scan history removal. §0–§7 assumed already shipped or out of scope for this pass — flag below.
 
-Make the Scan Decoder feature production-ready end-to-end:
-1. Verify Sprints 1–3 (scaffold, text reports, X-Ray vision) actually run.
-2. Activate the remaining 10 modalities (CT, MRI, Ultrasound, Echo, ECG, EEG, PET, Mammogram, DEXA, Nuclear) with modality-specific prompts and image vision.
-3. Wire scans into History (separate tab).
-4. Sweep for hidden bugs across the whole `/scan` flow.
+## Assumptions / clarifications baked in
+- No dedicated `/auth` route exists today; sign-in lives in `AuthModal`. I'll create `src/routes/auth.tsx` with the Claude-style split layout and keep `AuthModal` working for inline triggers.
+- Share links already use a short-lived `share_tokens` row at `/s/:token` (see `ShareModal` + `createShareToken`). The "WhatsApp opens homepage" bug is from the `wa.me` text being misformatted or the snapshot link not resolving; we'll fix the URL construction + ensure OG meta on `/s/$token`. No new `/report/:id` route — `/s/:token` already is the public read-only view.
+- Reports table = `public.reports`, scans table = `public.scan_results` (RLS + delete policies already in place). Hard delete, no schema migration needed.
+- Apple Sign-In / QR login from §0–§7 are NOT in this pass.
 
-## What ships
+## 1. Auth page hero (§8)
+New file `src/routes/auth.tsx`:
+- Two-column flex, 55/45 desktop, stacked on mobile (`lg:` breakpoint).
+- Left panel: `#0A0E1A` bg, mesh radial gradients, 3 drifting blob divs (CSS `@keyframes blob-drift`, 20s).
+- Top-left ReportRx logo pill.
+- Centered headline ("Understand your lab results, instantly.") + subtext.
+- Floating demo card (`ReportDemoCard` component) with 4 staggered biomarker rows + footer banner, 8s loop via pure CSS keyframes.
+- Bottom-left: 3 trust micro-badges.
+- Right panel: extract the form body from `AuthModal` into a shared `<AuthForm />` component so both modal and `/auth` use the same logic (Google via `lovable.auth`, email/password via `supabase.auth`).
 
-### 1. Modality-specific prompts (`src/lib/scanPrompts.ts` — new)
-Extract the existing `HONESTY_HEADER`, `XRAY_BODY`, `REPORT_TEXT_BODY` plus add `CT_BODY`, `MRI_BODY`, `ULTRASOUND_BODY`, `ECG_BODY`, `ECHO_BODY`, `MAMMOGRAM_BODY`, `DEXA_BODY`, `NUCLEAR_BODY`, `PET_BODY`, `EEG_BODY` using the spec the user provided (ABCDE for CXR, T1/T2 signal rules for MRI, TI-RADS for thyroid US, ST-segment review for ECG, EF grading for Echo, BI-RADS for mammogram, T-score for DEXA, etc.). Each adds its own "CRITICAL FINDINGS" list that the model must populate into `criticalAlerts`.
+New files:
+- `src/routes/auth.tsx`
+- `src/components/auth/AuthHeroPanel.tsx`
+- `src/components/auth/ReportDemoCard.tsx`
+- `src/components/auth/AuthForm.tsx` (extracted)
+- Refactor `AuthModal.tsx` to render `<AuthForm />`.
 
-### 2. Unified image-capable server fn (`src/lib/scanAnalysis.functions.ts`)
-- Replace the `xray_image | report_text` discriminated union with `scan_image | report_text`, where `scan_image` carries `modality` (xray/ct/mri/us/mammogram/dexa/pet/nuclear/echo/ecg/eeg).
-- Route to the right prompt body based on `modality`.
-- Vision models: keep `google/gemini-2.5-pro` for all image modalities; flash for text-only reports. Add a one-line note on cost in plan only.
-- Pass `bodyRegion`, `clinicalContext`, plus optional `contrastUsed`, `sequences`, `ultrasoundType`, `echoType`, `isPregnant` (all optional, surfaced into the prompt only when set).
+Tokens: add demo-card colors (`--demo-bg`, status pills) to `src/styles.css` rather than hardcoded hex.
 
-### 3. Activate all tiles (`src/components/scan/ModalityPicker.tsx`)
-Flip every tile to `enabled: true`. Remove "Soon" badge. Keep `report_text` and `xray` first.
+## 2. WhatsApp share fix (§9)
+In `src/components/results/ShareModal.tsx`:
+- `openWhatsApp` already builds `${origin}/s/${token}` — verify it's not falling back to origin-only when token mint fails. Add explicit guard + toast on failure.
+- Fix the message text: drop the URL-encode-the-origin pattern if present anywhere else; use `encodeURIComponent(fullText)` once.
+- Add `og:title`, `og:description`, `og:image` meta in `src/routes/s.$token.tsx` `head()` so WhatsApp link preview renders.
+- Audit `SharedSummaryView` and any other share entrypoint for the same bug.
 
-### 4. Scan page additions (`src/routes/scan.tsx`)
-- For image modalities other than X-Ray, accept JPG/PNG/PDF (PDF for printed films / report scans the user photographed). PDF path reuses existing `pdfExtract.ts` → if PDF has extractable text, send as `report_text`; else convert first page to image and send as `scan_image`.
-- Add a small "extra context" disclosure with modality-specific optional inputs (contrast yes/no for CT/MRI, sequences hint for MRI, pregnancy for US, echo type select).
-- Bump image size cap to 12 MB for higher-resolution scans.
-- Show modality-specific safety note (e.g. "ECG strips must be a clear, well-lit photo of the full 12-lead printout").
+## 3. Report history removal (§10)
+Replace current `HistoryCard` delete (local-only) with full flow against Supabase `reports`.
 
-### 5. History integration
-- Add a "Scans" tab on `src/routes/history.tsx`. Fetch via `listScans` (already exists). Render a card per scan: modality, body region, urgency badge, date, click → opens the result by rehydrating into `scanStore` and navigating to `/scan-results`.
-- Add a `getScan(id)` server fn so a refresh on `/scan-results?id=...` can re-fetch. Update `/scan-results` to accept `?id=` via search params and load from DB when the in-memory store is empty.
+New server fns in `src/lib/cloudSync.functions.ts`:
+- `deleteReport({ id })` — `requireSupabaseAuth`, deletes one row.
+- `deleteReports({ ids })` — bulk delete, `.in('id', ids)`.
+- `clearAllReports()` — delete all rows for `auth.uid()`.
 
-### 6. Critical-alert banner + indeterminate panel
-Already implemented in `ScanResultView`. Verify they render correctly when arrays are populated; add an `AlertOctagon` icon and pulsing dot to match the spec.
+New components:
+- `src/components/history/ReportHistoryList.tsx` — owns selection state.
+- `src/components/history/ReportHistoryItem.tsx` — checkbox + kebab + inline confirm popover.
+- `src/components/history/SelectionActionBar.tsx` — sticky bottom pill bar.
+- `src/components/history/ClearAllModal.tsx` — type-CLEAR-to-confirm modal.
+- `src/hooks/useReportHistory.ts` — selection state + mutations, invalidates `['cloud-reports']`.
 
-### 7. Bug sweep (audit + fix)
-After the build, walk every code path and fix anything found. Known suspects to verify or fix:
-- `scan-results.tsx` flashes "null" then redirects when store is empty (no loading state) → render a small skeleton instead, and gate the redirect on the mount tick.
-- `scanCloudSync.functions.ts` `select("*")` returns DB column names (`body_region`, etc.) but `ScanResultView` expects the camelCased `ScanInterpretationResult` shape → add a row-to-result mapper in `scanCloudSync.functions.ts` and use it in History click-through.
-- `useAuth` may not be hydrated on first render; `save()` after `analyze()` should not block navigation on auth failure (already wrapped in try/catch — verify toast text).
-- `analyzeScan` `fetch` failure currently calls `fail()` from inside `try` then `response` is `never` after — TS-safe but runtime should `return` instead; verify no "response used before assigned" path.
-- `normalizeScan.ts` BANNED_WORDS regex replaces "rules out" with "may suggest" mid-sentence — leaves awkward grammar; add a small post-pass to lowercase the join.
-- Navbar link to `/scan` exists but verify on mobile drawer.
-- `image/jpg` is not a real MIME type — accept attribute is fine but `file.type` will be `image/jpeg`; no fix needed, just confirmed.
-- PDF upload path for `report_text` doesn't exist yet on `/scan` — currently users must paste text. Add the PDF→text reuse from `pdfExtract.ts`.
-- Confirm `scan_results` RLS + GRANTs (already in DB per context) and that `language` default `'en'` doesn't break inserts when undefined.
+Wire into `src/routes/history.tsx` reports tab. Replace the existing "Clear local history" button with the new "Clear all" flow (which also clears `uploadStore`).
 
-### 8. Sanity check
-- Hit `/scan`, run one text-report flow and one X-Ray flow against the live preview via `stack_modern--invoke-server-function` is not feasible (image upload). Instead, smoke-test in the preview manually after build by submitting a tiny sample report (sample text already in `sampleReport.ts`) and checking server-function logs.
-- Run `supabase--linter` for any new RLS issues (none expected — no new tables).
+## 4. Scan history removal (§11)
+Mirror of §3 but for `scan_results`.
 
-## Out of scope
-- Comparison with prior scans (Sprint 9).
-- Professional PDF export (Sprint 10).
-- Per-image annotations / heatmaps.
-- WhatsApp / share-link for scans (extend existing share infra later).
-- i18n strings for the new modality labels (English only this pass; hi/ta/te can be added in a follow-up).
+New server fns in `src/lib/scanCloudSync.functions.ts`:
+- `deleteScan({ id })`, `deleteScans({ ids })`, `clearAllScans()`.
 
-## Technical notes (collapsible details for engineers)
+New components (kept separate per spec):
+- `src/components/history/ScanHistoryList.tsx`
+- `src/components/history/ScanHistoryItem.tsx` (extra warning copy about AI findings)
+- `src/components/history/ScanSelectionActionBar.tsx`
+- `src/components/history/ClearAllScansModal.tsx`
+- `src/hooks/useScanHistory.ts`
 
-- New file `src/lib/scanPrompts.ts` exports `buildPrompt(modality, mode, opts)` so `scanAnalysis.functions.ts` stays thin.
-- Add `getScan` server fn + DB-row mapper `rowToScanResult(row)` in `scanCloudSync.functions.ts`.
-- Update `ScanInput` union in `src/types/scan.ts` to add `modality` to the image variant and the optional context fields.
-- The `analyzeScan` server fn passes `modality` straight through to `normaliseScanResult` so saved rows carry the right value (today X-Ray hard-codes `"xray"`).
+Wire into the scans tab in `history.tsx`, replacing the current `ScanRow`.
 
-Reply "approve" and I'll implement everything in one pass, then sweep for bugs and confirm the flow works end-to-end.
+## 5. Shared bits
+- Add a generic `ConfirmPopover` primitive only if both flows need it; otherwise inline.
+- All new colors / shadows go through CSS tokens (`src/styles.css`).
+- All copy uses existing toast (`sonner`).
+
+## Technical notes
+- TanStack: new `/auth` route file = `createFileRoute('/auth')` with `head()` meta (`noindex`). No loader needed.
+- Auth flows stay client-side; no new middleware.
+- Bulk delete uses RLS-scoped client from `requireSupabaseAuth`; no admin client.
+- After each mutation: `queryClient.invalidateQueries({ queryKey: ['cloud-reports' | 'cloud-scans'] })`.
+- Animations use Tailwind + framer-motion already in project; no new deps.
+
+## Out of scope (flag)
+- §0–§7 (Apple sign-in, QR login, full auth system overhaul backend) — assumed shipped in v1.
+- Soft-delete migration (§12) — sticking with hard delete per spec recommendation; no migration needed.
+
+Reply "approve" to build, or tell me what to adjust (e.g. skip the new `/auth` route and only redesign the modal, or include Apple/QR work).

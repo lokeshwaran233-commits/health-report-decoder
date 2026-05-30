@@ -9,7 +9,20 @@ import { getShareSnapshot } from "@/lib/share.functions";
 export const Route = createFileRoute("/s/$token")({
   head: () => ({
     meta: [
-      { title: "Shared summary — ReportRx" },
+      { title: "Shared lab report summary — ReportRx" },
+      {
+        name: "description",
+        content:
+          "A privacy-safe summary of a lab report, decoded with ReportRx AI. Link expires automatically.",
+      },
+      { property: "og:title", content: "Shared lab report summary — ReportRx" },
+      {
+        property: "og:description",
+        content:
+          "View a shared ReportRx lab report summary in plain English. Link expires in 1 hour.",
+      },
+      { property: "og:type", content: "article" },
+      { name: "twitter:card", content: "summary" },
       { name: "robots", content: "noindex" },
     ],
   }),

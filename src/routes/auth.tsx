@@ -26,13 +26,13 @@ function AuthPage() {
   }, [user, loading, navigate]);
 
   return (
-    <div className="min-h-screen flex flex-col lg:flex-row bg-white">
-      {/* Left hero (desktop only fills 55%) */}
+    <div className="min-h-screen flex flex-col lg:flex-row bg-[#0A0E1A]">
       <div className="hidden lg:block lg:w-[55%]">
         <AuthHeroPanel />
       </div>
+
       {/* Mobile compact strip */}
-      <div className="lg:hidden bg-[#0A0E1A] text-white px-6 py-6">
+      <div className="lg:hidden bg-[#0A0E1A] text-white px-6 py-6 border-b border-[#1E2D42]">
         <div className="inline-flex items-center gap-2">
           <span className="h-8 w-8 rounded-full bg-[#00D9A3] text-[#0A0E1A] font-bold text-sm flex items-center justify-center">
             Rx
@@ -44,10 +44,17 @@ function AuthPage() {
         </p>
       </div>
 
-      {/* Right form */}
-      <div className="flex-1 lg:w-[45%] flex items-center justify-center px-6 py-12">
-        <div className="w-full max-w-md">
-          <AuthForm onSuccess={() => navigate({ to: "/" })} />
+      {/* Right form panel */}
+      <div className="flex-1 lg:w-[45%] flex items-center justify-center px-6 py-12 bg-[#0A0E1A]">
+        <div
+          className="w-full max-w-[420px] rounded-[20px] p-10 border"
+          style={{
+            background: "#111827",
+            borderColor: "#1E2D42",
+            boxShadow: "0 24px 60px rgba(0,0,0,0.4)",
+          }}
+        >
+          <AuthForm dark onSuccess={() => navigate({ to: "/" })} />
         </div>
       </div>
     </div>

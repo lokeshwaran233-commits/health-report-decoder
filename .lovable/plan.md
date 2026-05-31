@@ -1,85 +1,30 @@
-# Phase D1 v2 — Plan
+# Plan: Make /auth match the visual spec
 
-Scope: §8 hero panel, §9 share fix, §10 report history removal, §11 scan history removal. §0–§7 assumed already shipped or out of scope for this pass — flag below.
+The `/auth` route, `AuthHeroPanel`, and `ReportDemoCard` already exist from the previous pass, but the right-panel form styling is generic (white card, no dark treatment) and the hero panel uses small tweaks that don't quite match the spec (logo size, headline scale, blob opacity, badge content). This plan finishes the visual build only — no auth logic, no new server work.
 
-## Assumptions / clarifications baked in
-- No dedicated `/auth` route exists today; sign-in lives in `AuthModal`. I'll create `src/routes/auth.tsx` with the Claude-style split layout and keep `AuthModal` working for inline triggers.
-- Share links already use a short-lived `share_tokens` row at `/s/:token` (see `ShareModal` + `createShareToken`). The "WhatsApp opens homepage" bug is from the `wa.me` text being misformatted or the snapshot link not resolving; we'll fix the URL construction + ensure OG meta on `/s/$token`. No new `/report/:id` route — `/s/:token` already is the public read-only view.
-- Reports table = `public.reports`, scans table = `public.scan_results` (RLS + delete policies already in place). Hard delete, no schema migration needed.
-- Apple Sign-In / QR login from §0–§7 are NOT in this pass.
+## Files to touch
 
-## 1. Auth page hero (§8)
-New file `src/routes/auth.tsx`:
-- Two-column flex, 55/45 desktop, stacked on mobile (`lg:` breakpoint).
-- Left panel: `#0A0E1A` bg, mesh radial gradients, 3 drifting blob divs (CSS `@keyframes blob-drift`, 20s).
-- Top-left ReportRx logo pill.
-- Centered headline ("Understand your lab results, instantly.") + subtext.
-- Floating demo card (`ReportDemoCard` component) with 4 staggered biomarker rows + footer banner, 8s loop via pure CSS keyframes.
-- Bottom-left: 3 trust micro-badges.
-- Right panel: extract the form body from `AuthModal` into a shared `<AuthForm />` component so both modal and `/auth` use the same logic (Google via `lovable.auth`, email/password via `supabase.auth`).
+1. **`src/routes/auth.tsx`** — make right panel dark (`#0A0E1A`), center the form, wrap `AuthForm` in a dark card (`#111827`, border `#1E2D42`, radius 20, padding 40, max-w 420). Keep mobile strip as-is.
+2. **`src/components/auth/AuthHeroPanel.tsx`** — match spec exactly:
+   - Logo pill top-left at 32/32 (already close)
+   - Headline sizing → `text-5xl lg:text-6xl`, "lab results," in `#00D9A3`
+   - Demo card centered with subtext above
+   - Trust badges bottom-left, keep icons but ensure dark pill style
+3. **`src/components/auth/ReportDemoCard.tsx`** — already matches; just verify timing (rows 0.8/1.1/1.4/1.7s, footer 2.0s) and remove the outer `rrx-card-loop` opacity flicker (spec doesn't ask for it; keep card steady after fade-in).
+4. **`src/components/auth/AuthForm.tsx`** — add a `dark` variant prop so when rendered inside the dark auth page card it uses:
+   - Inputs: bg `#0A0E1A`, border `#1E2D42`, text white, height 52, radius 12, focus ring `#00D9A3`
+   - Tabs pill: bg `#0A0E1A`, active tab `#1A2235` with white text
+   - Primary button: gradient `linear-gradient(135deg,#00D9A3,#0F6E56)`, text `#0A0E1A`, h-52, radius 12
+   - Google button: bg `#1A2235`, border `#1E2D42`, white text
+   - Headings/labels in light tones (`#F0F4F8` / `#8B9BAE`)
+   - Default (modal) stays unchanged
+5. **`src/styles.css`** — already has `rrx-blob-drift`, `rrx-pulse-dot`, `rrx-row-in`. Add DM Sans to the Google Fonts `@import` line (Inter already loaded). Drop `.rrx-demo-card` loop opacity so the card stays visible after first stagger.
 
-New files:
-- `src/routes/auth.tsx`
-- `src/components/auth/AuthHeroPanel.tsx`
-- `src/components/auth/ReportDemoCard.tsx`
-- `src/components/auth/AuthForm.tsx` (extracted)
-- Refactor `AuthModal.tsx` to render `<AuthForm />`.
+## What stays untouched
 
-Tokens: add demo-card colors (`--demo-bg`, status pills) to `src/styles.css` rather than hardcoded hex.
+- `AuthModal.tsx`, all hooks, Supabase client, server functions, routes other than `/auth`.
+- `AuthForm` business logic (Google OAuth, email/password handlers, i18n keys).
 
-## 2. WhatsApp share fix (§9)
-In `src/components/results/ShareModal.tsx`:
-- `openWhatsApp` already builds `${origin}/s/${token}` — verify it's not falling back to origin-only when token mint fails. Add explicit guard + toast on failure.
-- Fix the message text: drop the URL-encode-the-origin pattern if present anywhere else; use `encodeURIComponent(fullText)` once.
-- Add `og:title`, `og:description`, `og:image` meta in `src/routes/s.$token.tsx` `head()` so WhatsApp link preview renders.
-- Audit `SharedSummaryView` and any other share entrypoint for the same bug.
+## Success check
 
-## 3. Report history removal (§10)
-Replace current `HistoryCard` delete (local-only) with full flow against Supabase `reports`.
-
-New server fns in `src/lib/cloudSync.functions.ts`:
-- `deleteReport({ id })` — `requireSupabaseAuth`, deletes one row.
-- `deleteReports({ ids })` — bulk delete, `.in('id', ids)`.
-- `clearAllReports()` — delete all rows for `auth.uid()`.
-
-New components:
-- `src/components/history/ReportHistoryList.tsx` — owns selection state.
-- `src/components/history/ReportHistoryItem.tsx` — checkbox + kebab + inline confirm popover.
-- `src/components/history/SelectionActionBar.tsx` — sticky bottom pill bar.
-- `src/components/history/ClearAllModal.tsx` — type-CLEAR-to-confirm modal.
-- `src/hooks/useReportHistory.ts` — selection state + mutations, invalidates `['cloud-reports']`.
-
-Wire into `src/routes/history.tsx` reports tab. Replace the existing "Clear local history" button with the new "Clear all" flow (which also clears `uploadStore`).
-
-## 4. Scan history removal (§11)
-Mirror of §3 but for `scan_results`.
-
-New server fns in `src/lib/scanCloudSync.functions.ts`:
-- `deleteScan({ id })`, `deleteScans({ ids })`, `clearAllScans()`.
-
-New components (kept separate per spec):
-- `src/components/history/ScanHistoryList.tsx`
-- `src/components/history/ScanHistoryItem.tsx` (extra warning copy about AI findings)
-- `src/components/history/ScanSelectionActionBar.tsx`
-- `src/components/history/ClearAllScansModal.tsx`
-- `src/hooks/useScanHistory.ts`
-
-Wire into the scans tab in `history.tsx`, replacing the current `ScanRow`.
-
-## 5. Shared bits
-- Add a generic `ConfirmPopover` primitive only if both flows need it; otherwise inline.
-- All new colors / shadows go through CSS tokens (`src/styles.css`).
-- All copy uses existing toast (`sonner`).
-
-## Technical notes
-- TanStack: new `/auth` route file = `createFileRoute('/auth')` with `head()` meta (`noindex`). No loader needed.
-- Auth flows stay client-side; no new middleware.
-- Bulk delete uses RLS-scoped client from `requireSupabaseAuth`; no admin client.
-- After each mutation: `queryClient.invalidateQueries({ queryKey: ['cloud-reports' | 'cloud-scans'] })`.
-- Animations use Tailwind + framer-motion already in project; no new deps.
-
-## Out of scope (flag)
-- §0–§7 (Apple sign-in, QR login, full auth system overhaul backend) — assumed shipped in v1.
-- Soft-delete migration (§12) — sticking with hard delete per spec recommendation; no migration needed.
-
-Reply "approve" to build, or tell me what to adjust (e.g. skip the new `/auth` route and only redesign the modal, or include Apple/QR work).
+Open `/auth` at desktop ≥1024px → dark page, left hero (logo, headline with teal accent, animated demo card with 4 staggered rows + "3 actionable insights ready" footer, 3 drifting blobs, 3 trust badges bottom-left), right side dark card with tabs + email + password + gradient CTA. At <1024px → top dark strip with logo + tagline, full-width dark form card below.

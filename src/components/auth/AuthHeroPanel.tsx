@@ -22,8 +22,9 @@ export function AuthHeroPanel() {
       </div>
 
       {/* center hero */}
-      <div className="relative z-10 flex flex-col items-start justify-center px-8 lg:px-16 pb-32 min-h-[calc(100vh-160px)]">
-        <h1 className="text-4xl md:text-5xl lg:text-6xl font-semibold leading-[1.05] tracking-tight max-w-[520px]">
+      <div className="relative z-10 flex flex-col items-start justify-center px-12 py-16 pt-16 pb-32 min-h-[calc(100vh-120px)]">
+        <h1 className="text-5xl md:text-6xl lg:text-6xl font-semibold leading-[1.05] tracking-tight max-w-[520px]">
+
           Understand your
           <br />
           <span className="text-[#00D9A3]">lab results,</span>

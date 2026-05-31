@@ -45,9 +45,9 @@ function AuthPage() {
       </div>
 
       {/* Right form panel */}
-      <div className="flex-1 lg:w-[45%] flex items-center justify-center px-6 py-12 bg-[#0A0E1A]">
+      <div className="flex-1 lg:w-[45%] flex items-center justify-center px-12 py-16 bg-[#0A0E1A]">
         <div
-          className="w-full max-w-[420px] rounded-[20px] p-10 border"
+          className="w-full max-w-[420px] mx-auto rounded-[20px] p-10 border"
           style={{
             background: "#111827",
             borderColor: "#1E2D42",
@@ -56,6 +56,7 @@ function AuthPage() {
         >
           <AuthForm dark onSuccess={() => navigate({ to: "/" })} />
         </div>
+
       </div>
     </div>
   );

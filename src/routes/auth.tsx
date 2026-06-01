@@ -22,10 +22,23 @@ function AuthPage() {
   const navigate = useNavigate();
 
   useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      if (window.localStorage.getItem(SESSION_EXPIRED_FLAG) === "1") {
+        window.localStorage.removeItem(SESSION_EXPIRED_FLAG);
+        toast.info("You were signed out after 30 minutes of inactivity.");
+      }
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  useEffect(() => {
     if (!loading && user) {
       void navigate({ to: "/", replace: true });
     }
   }, [user, loading, navigate]);
+
 
   return (
     <div className="min-h-screen flex flex-col lg:flex-row bg-[#0A0E1A]">

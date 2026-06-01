@@ -1,8 +1,10 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { toast } from "sonner";
 import { AuthForm } from "@/components/auth/AuthForm";
 import { AuthHeroPanel } from "@/components/auth/AuthHeroPanel";
 import { useAuth } from "@/hooks/useAuth";
+import { SESSION_EXPIRED_FLAG } from "@/hooks/useSessionTimeout";
 
 export const Route = createFileRoute("/auth")({
   head: () => ({

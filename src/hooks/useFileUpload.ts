@@ -43,6 +43,18 @@ export function useFileUpload(): UseFileUploadReturn {
         return;
       }
 
+      // Deep validation: filename sanity + magic-byte content sniff.
+      const deep = await validateUploadedFile(file);
+      if (!deep.valid) {
+        setUploadState({
+          status: "error",
+          error: deep.error,
+          file,
+        });
+        return;
+      }
+
+
       setUploadState({ status: "extracting", file });
       try {
         const isPdf = file.type === "application/pdf";

@@ -6,6 +6,8 @@ import { Footer } from "@/components/layout/Footer";
 import { PageWrapper } from "@/components/layout/PageWrapper";
 import { ErrorBoundary } from "@/components/layout/ErrorBoundary";
 import { Toaster } from "sonner";
+import { useAuth } from "@/hooks/useAuth";
+import { useSessionTimeout } from "@/hooks/useSessionTimeout";
 
 function NotFoundComponent() {
   return (
@@ -96,9 +98,14 @@ function RootShell({ children }: { children: React.ReactNode }) {
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const { user } = useAuth();
+
+  // Sign out after 30 min of inactivity for authenticated users.
+  useSessionTimeout({ enabled: !!user });
 
   // Routes that should render WITHOUT navbar/footer/pagewrapper
-  const isBarePage = pathname === "/auth";
+  const isBarePage = pathname === "/auth" || pathname === "/auth/reset-password";
+
 
   return (
     <QueryClientProvider client={queryClient}>

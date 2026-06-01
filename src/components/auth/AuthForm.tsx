@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { Button } from "@/components/rx/Button";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable";
+import { AUTH_RATE_LIMIT, checkRateLimit, recordAttempt, resetRateLimit } from "@/lib/security/rateLimiter";
 
 export interface AuthFormProps {
   initialTab?: "signin" | "signup";
@@ -40,9 +41,42 @@ export function AuthForm({ initialTab = "signin", onSuccess, bare = false, dark 
     }
   };
 
+  const handleForgotPassword = async () => {
+    if (busy) return;
+    const trimmed = email.trim();
+    if (!trimmed) {
+      toast.error("Enter your email address first.");
+      return;
+    }
+    setBusy(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(trimmed, {
+        redirectTo:
+          typeof window !== "undefined"
+            ? `${window.location.origin}/auth/reset-password`
+            : undefined,
+      });
+      if (error) throw error;
+      toast.success("Check your inbox for a password reset link.");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not send reset email");
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (busy) return;
+
+    const rlKey = `auth:${tab}:${email.trim().toLowerCase()}`;
+    const status = checkRateLimit(rlKey, AUTH_RATE_LIMIT);
+    if (!status.allowed) {
+      const mins = Math.ceil(status.retryAfterSec / 60);
+      toast.error(`Too many attempts. Try again in ${mins} minute${mins === 1 ? "" : "s"}.`);
+      return;
+    }
+
     setBusy(true);
     try {
       if (tab === "signup") {
@@ -54,11 +88,19 @@ export function AuthForm({ initialTab = "signin", onSuccess, bare = false, dark 
               typeof window !== "undefined" ? window.location.origin : undefined,
           },
         });
-        if (error) throw error;
+        if (error) {
+          recordAttempt(rlKey, AUTH_RATE_LIMIT);
+          throw error;
+        }
+        resetRateLimit(rlKey);
         toast.success(t("auth.checkInbox"));
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
+        if (error) {
+          recordAttempt(rlKey, AUTH_RATE_LIMIT);
+          throw error;
+        }
+        resetRateLimit(rlKey);
         toast.success(t("auth.welcomeBack"));
       }
       onSuccess?.();
@@ -183,6 +225,20 @@ export function AuthForm({ initialTab = "signin", onSuccess, bare = false, dark 
             placeholder="At least 6 characters"
           />
         </div>
+        {tab === "signin" && (
+          <div className="flex justify-end">
+            <button
+              type="button"
+              onClick={handleForgotPassword}
+              disabled={busy}
+              className={`text-xs font-medium hover:underline disabled:opacity-60 ${
+                dark ? "text-[#00D9A3]" : "text-brand-teal"
+              }`}
+            >
+              Forgot password?
+            </button>
+          </div>
+        )}
         {submitBtn}
       </form>
     </div>

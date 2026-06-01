@@ -225,6 +225,20 @@ export function AuthForm({ initialTab = "signin", onSuccess, bare = false, dark 
             placeholder="At least 6 characters"
           />
         </div>
+        {tab === "signin" && (
+          <div className="flex justify-end">
+            <button
+              type="button"
+              onClick={handleForgotPassword}
+              disabled={busy}
+              className={`text-xs font-medium hover:underline disabled:opacity-60 ${
+                dark ? "text-[#00D9A3]" : "text-brand-teal"
+              }`}
+            >
+              Forgot password?
+            </button>
+          </div>
+        )}
         {submitBtn}
       </form>
     </div>

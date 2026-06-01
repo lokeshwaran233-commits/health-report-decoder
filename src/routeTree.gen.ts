@@ -16,6 +16,7 @@ import { Route as HistoryRouteImport } from './routes/history'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as STokenRouteImport } from './routes/s.$token'
+import { Route as AuthResetPasswordRouteImport } from './routes/auth.reset-password'
 
 const ScanResultsRoute = ScanResultsRouteImport.update({
   id: '/scan-results',
@@ -52,33 +53,41 @@ const STokenRoute = STokenRouteImport.update({
   path: '/s/$token',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthResetPasswordRoute = AuthResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
+  getParentRoute: () => AuthRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/auth': typeof AuthRoute
+  '/auth': typeof AuthRouteWithChildren
   '/history': typeof HistoryRoute
   '/results': typeof ResultsRoute
   '/scan': typeof ScanRoute
   '/scan-results': typeof ScanResultsRoute
+  '/auth/reset-password': typeof AuthResetPasswordRoute
   '/s/$token': typeof STokenRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/auth': typeof AuthRoute
+  '/auth': typeof AuthRouteWithChildren
   '/history': typeof HistoryRoute
   '/results': typeof ResultsRoute
   '/scan': typeof ScanRoute
   '/scan-results': typeof ScanResultsRoute
+  '/auth/reset-password': typeof AuthResetPasswordRoute
   '/s/$token': typeof STokenRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/auth': typeof AuthRoute
+  '/auth': typeof AuthRouteWithChildren
   '/history': typeof HistoryRoute
   '/results': typeof ResultsRoute
   '/scan': typeof ScanRoute
   '/scan-results': typeof ScanResultsRoute
+  '/auth/reset-password': typeof AuthResetPasswordRoute
   '/s/$token': typeof STokenRoute
 }
 export interface FileRouteTypes {
@@ -90,6 +99,7 @@ export interface FileRouteTypes {
     | '/results'
     | '/scan'
     | '/scan-results'
+    | '/auth/reset-password'
     | '/s/$token'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -99,6 +109,7 @@ export interface FileRouteTypes {
     | '/results'
     | '/scan'
     | '/scan-results'
+    | '/auth/reset-password'
     | '/s/$token'
   id:
     | '__root__'
@@ -108,12 +119,13 @@ export interface FileRouteTypes {
     | '/results'
     | '/scan'
     | '/scan-results'
+    | '/auth/reset-password'
     | '/s/$token'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  AuthRoute: typeof AuthRoute
+  AuthRoute: typeof AuthRouteWithChildren
   HistoryRoute: typeof HistoryRoute
   ResultsRoute: typeof ResultsRoute
   ScanRoute: typeof ScanRoute
@@ -172,12 +184,29 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof STokenRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/auth/reset-password': {
+      id: '/auth/reset-password'
+      path: '/reset-password'
+      fullPath: '/auth/reset-password'
+      preLoaderRoute: typeof AuthResetPasswordRouteImport
+      parentRoute: typeof AuthRoute
+    }
   }
 }
 
+interface AuthRouteChildren {
+  AuthResetPasswordRoute: typeof AuthResetPasswordRoute
+}
+
+const AuthRouteChildren: AuthRouteChildren = {
+  AuthResetPasswordRoute: AuthResetPasswordRoute,
+}
+
+const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  AuthRoute: AuthRoute,
+  AuthRoute: AuthRouteWithChildren,
   HistoryRoute: HistoryRoute,
   ResultsRoute: ResultsRoute,
   ScanRoute: ScanRoute,
@@ -187,3 +216,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}

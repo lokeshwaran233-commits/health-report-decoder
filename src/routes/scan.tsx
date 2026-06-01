@@ -9,6 +9,7 @@ import { analyzeScan } from "@/lib/scanAnalysis.functions";
 import { saveScan } from "@/lib/scanCloudSync.functions";
 import { scanStore } from "@/lib/scanStore";
 import { extractTextFromPDF } from "@/lib/pdfExtract";
+import { validateUploadedFile } from "@/lib/security/fileValidator";
 import { useAuth } from "@/hooks/useAuth";
 import type {
   BodyRegion,
@@ -122,7 +123,7 @@ function ScanPage() {
   const isImageMode = modality != null && modality !== "report_text";
   const imageModality = isImageMode ? (modality as ImageScanModality) : null;
 
-  const handlePickImage = (f: File | null) => {
+  const handlePickImage = async (f: File | null) => {
     setError(null);
     if (!f) { setFile(null); setPreviewUrl(null); return; }
     if (!f.type.startsWith("image/")) {
@@ -131,6 +132,11 @@ function ScanPage() {
     }
     if (f.size > MAX_IMAGE_MB * 1024 * 1024) {
       setError(`Image is too large. Please keep it under ${MAX_IMAGE_MB} MB.`);
+      return;
+    }
+    const deep = await validateUploadedFile(f);
+    if (!deep.valid) {
+      setError(deep.error ?? "This file couldn't be verified.");
       return;
     }
     setFile(f);
@@ -142,6 +148,11 @@ function ScanPage() {
     if (!f) return;
     if (f.type !== "application/pdf") {
       setError("Please upload a PDF, or paste the report text directly.");
+      return;
+    }
+    const deep = await validateUploadedFile(f);
+    if (!deep.valid) {
+      setError(deep.error ?? "This file couldn't be verified.");
       return;
     }
     try {

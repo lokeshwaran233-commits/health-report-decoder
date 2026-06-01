@@ -3,6 +3,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { extractImageBase64, extractTextFromPDF } from "@/lib/pdfExtract";
 import { uploadStore } from "@/lib/uploadStore";
 import { validateFile } from "@/lib/validators";
+import { validateUploadedFile } from "@/lib/security/fileValidator";
 import { buildSampleResult } from "@/lib/sampleResult";
 import type { UploadState } from "@/types/report";
 
@@ -41,6 +42,18 @@ export function useFileUpload(): UseFileUploadReturn {
         });
         return;
       }
+
+      // Deep validation: filename sanity + magic-byte content sniff.
+      const deep = await validateUploadedFile(file);
+      if (!deep.valid) {
+        setUploadState({
+          status: "error",
+          error: deep.error,
+          file,
+        });
+        return;
+      }
+
 
       setUploadState({ status: "extracting", file });
       try {

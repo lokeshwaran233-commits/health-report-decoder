@@ -9,6 +9,7 @@ import { analyzeScan } from "@/lib/scanAnalysis.functions";
 import { saveScan } from "@/lib/scanCloudSync.functions";
 import { scanStore } from "@/lib/scanStore";
 import { extractTextFromPDF } from "@/lib/pdfExtract";
+import { validateUploadedFile } from "@/lib/security/fileValidator";
 import { useAuth } from "@/hooks/useAuth";
 import type {
   BodyRegion,

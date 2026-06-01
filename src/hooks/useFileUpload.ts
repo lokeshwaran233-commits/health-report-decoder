@@ -3,6 +3,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { extractImageBase64, extractTextFromPDF } from "@/lib/pdfExtract";
 import { uploadStore } from "@/lib/uploadStore";
 import { validateFile } from "@/lib/validators";
+import { validateUploadedFile } from "@/lib/security/fileValidator";
 import { buildSampleResult } from "@/lib/sampleResult";
 import type { UploadState } from "@/types/report";
 

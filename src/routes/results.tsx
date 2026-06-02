@@ -17,6 +17,7 @@ import { ResultsFlowGraphic } from "@/components/results/ResultsFlowGraphic";
 import { CriticalValuesBanner } from "@/components/results/CriticalValuesBanner";
 import { PatternsSection } from "@/components/results/PatternsSection";
 import { FollowUpTestsSection } from "@/components/results/FollowUpTestsSection";
+import { ZenoOrb } from "@/components/zeno/ZenoOrb";
 import { useReportAnalysis } from "@/hooks/useReportAnalysis";
 import { uploadStore } from "@/lib/uploadStore";
 import { decodeShare } from "@/lib/shareCodec";
@@ -317,6 +318,8 @@ function ResultsPage() {
         result={analysisResult}
         counts={statusCounts}
       />
+
+      <ZenoOrb report={analysisResult} />
     </div>
   );
 }

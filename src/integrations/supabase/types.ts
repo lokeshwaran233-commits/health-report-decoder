@@ -151,12 +151,88 @@ export type Database = {
           },
         ]
       }
+      zeno_conversations: {
+        Row: {
+          created_at: string
+          emergency_detected: boolean
+          id: string
+          messages: Json
+          mode: string
+          report_id: string | null
+          summary: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          emergency_detected?: boolean
+          id?: string
+          messages?: Json
+          mode?: string
+          report_id?: string | null
+          summary?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          emergency_detected?: boolean
+          id?: string
+          messages?: Json
+          mode?: string
+          report_id?: string | null
+          summary?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      zeno_knowledge: {
+        Row: {
+          category: string | null
+          content: string
+          created_at: string
+          embedding: string | null
+          id: string
+          source: string
+          title: string
+        }
+        Insert: {
+          category?: string | null
+          content: string
+          created_at?: string
+          embedding?: string | null
+          id?: string
+          source: string
+          title: string
+        }
+        Update: {
+          category?: string | null
+          content?: string
+          created_at?: string
+          embedding?: string | null
+          id?: string
+          source?: string
+          title?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      match_zeno_knowledge: {
+        Args: { match_count?: number; query_embedding: string }
+        Returns: {
+          category: string
+          content: string
+          id: string
+          similarity: number
+          source: string
+          title: string
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never

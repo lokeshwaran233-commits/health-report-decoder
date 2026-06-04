@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Copy, FileText, MessageSquare } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/rx/Button";
+import { AudioPlayer } from "@/components/results/AudioPlayer";
 import type { AnalysisResult } from "@/types/report";
 
 export interface InsightsSectionProps {
@@ -63,6 +64,8 @@ export function InsightsSection({ result }: InsightsSectionProps) {
 
   return (
     <div className="space-y-8">
+      <AudioPlayer result={result} />
+
       <section
         aria-labelledby="summary-heading"
         className="rounded-card bg-white border border-brand-border border-l-[3px] border-l-brand-teal-light p-6"

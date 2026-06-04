@@ -4,7 +4,8 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
 export type ShareErrorCode = "NOT_FOUND" | "EXPIRED" | "LIMIT_EXCEEDED";
 
-export interface ShareSnapshot {
+export interface SummaryShareSnapshot {
+  kind?: "summary";
   metadata: {
     patientName: string | null;
     reportDate: string | null;
@@ -15,6 +16,19 @@ export interface ShareSnapshot {
   doctorQuestions: string[];
   contentWarning: string | null;
 }
+
+export interface AudioShareSnapshot {
+  kind: "audio";
+  metadata: {
+    patientName: string | null;
+    reportDate: string | null;
+    labName: string | null;
+  };
+  language: string;
+  summaryText: string;
+}
+
+export type ShareSnapshot = SummaryShareSnapshot | AudioShareSnapshot;
 
 export interface ShareResult {
   ok: true;

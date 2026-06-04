@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { AlertTriangle, Clock } from "lucide-react";
 import { Button } from "@/components/rx/Button";
 import { SharedSummaryView } from "@/components/share/SharedSummaryView";
+import { AudioShareView } from "@/components/results/AudioShareView";
 import { getShareSnapshot } from "@/lib/share.functions";
 
 export const Route = createFileRoute("/s/$token")({
@@ -122,6 +123,16 @@ function SharedTokenPage() {
       );
     }
     return <Message title="Link not found" body="This share link does not exist." />;
+  }
+
+  if (data.shareType === "audio" && data.snapshot.kind === "audio") {
+    return (
+      <AudioShareView snapshot={data.snapshot} expiresAt={data.expiresAt} />
+    );
+  }
+
+  if (data.snapshot.kind === "audio") {
+    return <Message title="Wrong link type" body="This link contains audio data." />;
   }
 
   return <SharedSummaryView snapshot={data.snapshot} />;

@@ -1,123 +1,81 @@
-## Overview
+## Phase D6 + D7 Implementation Plan
 
-This spec covers ~15 sub-features across three themes:
-- **D1** — security hardening (validation, auth, RLS, headers, audit logs)
-- **D4** — Zeno: sliding chat panel, report-aware AI companion, voice, RAG, emergency detection
-- **D5** — cross-report memory + WhatsApp Q&A bridge
-
-It's far too large for one implementation pass. I'll plan it as **6 phases**, each independently testable. After approval, I'll build Phase 1 and stop; you re-approve before Phase 2, and so on. This keeps each turn focused and lets you correct course early.
-
-Stack adaptations confirmed:
-- Lovable AI Gateway via TanStack `createServerFn` (no Anthropic/OpenAI keys, no browser-direct calls)
-- Security headers via TanStack request middleware (no `netlify.toml`)
-- Audit logging + RAG embeddings via `createServerFn` (no Supabase Edge Functions)
-- WhatsApp pieces deferred — no existing WA infra in repo, would need separate provider decision
+Single combined plan, sequenced so D6 ships first and D7 layers cleanly on top. Each "Credit" maps to a self-contained build step you can stop after.
 
 ---
 
-## Phase 1 — Input validation & sanitization (D1 C1)
+### Pre-flight audit (1 step, no code yet once we enter build mode)
 
-Smallest, zero-risk foundation. No DB changes.
-
-- `src/lib/security/fileValidator.ts` — MIME allowlist, 10MB cap, filename rules, magic-byte check (JPEG/PNG/WebP/PDF)
-- `src/lib/security/sanitize.ts` — DOMPurify wrappers (`sanitizeText`, `sanitizeRichText`)
-- Install `dompurify` + `@types/dompurify`
-- Wire `validateUploadedFile` into `src/components/upload/DropZone.tsx` and `src/components/scan/` upload paths; show friendly error toast on rejection
-- Wire `sanitizeText` into any free-text persistence points (currently minimal — mostly auth form inputs)
-
-Stop. Verify uploads still work; invalid files blocked.
-
-## Phase 2 — Auth hardening + session timeout (D1 C2)
-
-- `src/lib/security/rateLimiter.ts` — generic localStorage attempt tracker (sign-up 3/hr/email, password-reset 3/hr, resend-verify 3/hr)
-- Password reset flow:
-  - "Forgot password?" link in `AuthForm.tsx`
-  - New route `src/routes/auth.reset-password.tsx` handling `PASSWORD_RECOVERY` event, with password rules matching signup
-- `src/hooks/useSessionTimeout.ts` — 30-min idle timeout, signs out + sets `rx_session_expired` flag
-- Mount in `__root.tsx` (only when authenticated)
-- "Session expired" modal on `/auth` when flag present
-- CSRF helpers (`src/lib/security/csrf.ts`) — provided but only wired if we add custom forms; JWT-bearer flows don't need it
-
-Stop. Test forgot-password roundtrip, idle logout.
-
-## Phase 3 — RLS audit, storage policies, security headers (D1 C3-C4)
-
-Migration:
-- Audit existing `reports`, `scan_results`, `share_tokens` policies (already mostly correct per current schema)
-- Add `share_tokens` public-read policy gated by `expires_at > now() AND accessed_count < max_accesses`
-- Create `lab_reports` private storage bucket + folder-scoped RLS (`{user_id}/...`)
-- `src/lib/security/storagePath.ts` helper
-
-Headers (stack-appropriate):
-- `src/start.ts` — add request middleware that sets CSP, HSTS, X-Frame-Options, Referrer-Policy, Permissions-Policy on all responses; `Cache-Control: no-store, private` + `X-Robots-Tag: noindex` for `/s/*` and `/profile`
-
-Stop. Verify headers in DevTools; share links still work.
-
-## Phase 4 — Zeno UI shell + Lovable AI wiring (D4 C1-C2)
-
-DB migration:
-- `zeno_conversations` table (user_id, report_id, messages jsonb, summary, timestamps) + RLS
-
-Server fn:
-- `src/lib/zeno/zeno.functions.ts` — `chatWithZeno` using Lovable AI Gateway (`google/gemini-2.5-pro` for medical depth), streaming via SSE, `requireSupabaseAuth` middleware
-- System prompt built server-side from report + profile context (never client-side)
-- Strict safety rules (no meds, no diagnosis, emergency prefix, etc.)
-
-UI:
-- `src/components/zeno/ZenoOrb.tsx` — floating bottom-right pulse button
-- `src/components/zeno/ZenoPanel.tsx` — right-slide panel (bottom-sheet on mobile), animated orb header, message list, mode toggle (Simple/Medical), input bar
-- `src/components/zeno/ZenoMessage.tsx` — bubble styles per spec
-- `src/hooks/zeno/useZeno.ts` — state + streaming consumer
-- `src/lib/zeno/contextBuilder.ts` — system prompt builder (server-only)
-- CSS tokens added to `src/styles.css`
-- Mount orb in results pages where a report is loaded
-
-Stop. Verify chat works with a real report; safety guardrails respected.
-
-## Phase 5 — Dual-mode parsing, emergency detection, anti-hallucination (D4 C3 partial + C5)
-
-- `src/lib/zeno/responseParser.ts` — `[CLINICAL_START]...[CLINICAL_END]` extraction
-- Medical mode: collapsible clinical section in bubble
-- `src/lib/zeno/emergencyDetector.ts` — threshold table (Hb, glucose, K, Na, creatinine, troponin)
-- Persistent amber banner in panel + red dot on orb when emergencies detected
-- `src/lib/zeno/hallucinationGuard.ts` — server-side regex post-filter on streamed response; on violation, replace with safe phrasing and silently log
-- Conversation persistence to `zeno_conversations`
-
-Stop. Mock an Hb < 7 report; verify banner + advisory wording.
-
-## Phase 6 — RAG knowledge base + voice (D4 C3 RAG + C4)
-
-DB migration:
-- `pgvector` extension + `zeno_knowledge` table (vector(3072) for `google/gemini-embedding-001`) + HNSW index + `match_zeno_knowledge` RPC
-
-Server:
-- `src/lib/zeno/rag.functions.ts` — embed query via Lovable AI `/v1/embeddings`, retrieve top-k chunks, inject into system prompt; flag low-confidence (<0.7 similarity) so Zeno hedges
-- `scripts/seedZenoKnowledge.ts` — seed ICMR/WHO/MedlinePlus chunks (small starter set)
-
-Voice:
-- `src/hooks/zeno/useZenoSTT.ts` — Web Speech API (en-IN default), guarded for unsupported browsers
-- TTS toggle using existing AudioService if present, else `speechSynthesis`
-- Language pill for STT/TTS language
-
-Stop. Verify retrieval grounds answers; voice in/out works in Chrome.
+Verify before building:
+1. Zeno (D4–D5): open `/results` with a sample report, send a message, toggle Simple/Medical mode, test medication refusal, check console + `zeno_conversations` writes.
+2. Confirm `share_tokens` schema already supports `audio` (it does, per `cloudSync.functions.ts`) and `snapshot` jsonb exists.
+3. List concrete bugs found; fix only blockers before D6 credit 1.
 
 ---
 
-## Deferred (not in this plan, flag for later)
+### D6 — Audio Summary + Multi-language TTS
 
-- **D5 cross-report memory** — straightforward extension of Phase 4-6, adds conversation summarization + summaries injected into context
-- **D5 WhatsApp bridge** — requires choosing a WA provider (Twilio, Meta Cloud API, Uazapi); no scaffolding exists. Separate planning round.
-- **Audit log table + anomaly detection** (D1 C5) — useful but additive; can slot in after Phase 3 if needed. I left it out of the critical path to keep phases shippable.
-- **JSON-mode structured dietary cards** (D5 C5) — small follow-up after RAG is stable.
+**Credit 1 — Audio engine**
+- `src/lib/audioService.ts`: `AudioService` class (speak/pause/resume/stop, voice picker with Indian-language preference, progress estimator, Chrome 14s keep-alive ping, `getAvailableLanguages()` static, `buildScript(result, lang)` static).
+- `src/hooks/useAudioPlayer.ts`: stateful wrapper exposing `{ state, progress, language, changeLanguage, play, pause, stop }`. Persists language to `localStorage` key `rx_audio_lang`. Accept either an `AnalysisResult` OR a pre-built script string (needed for share view).
 
-## Technical notes
+**Credit 2 — Inline player UI**
+- `src/components/results/WaveformVisualizer.tsx` — 24 animated bars, sine + noise, teal-on-dark, idle/playing/paused/done/error variants.
+- `src/components/results/AudioPlayer.tsx` — pill card with waveform, title, language selector (only available languages enabled; unavailable shown disabled with install-voice tooltip), play/pause/stop, progress bar + %. WCAG: `role="region"`, `aria-label`, `role="progressbar"` with valuenow, `aria-live="polite"` status. No-speech-API fallback card.
+- Mount at the top of `InsightsSection.tsx`.
 
-- All AI calls go through TanStack `createServerFn` → Lovable AI Gateway. `LOVABLE_API_KEY` is already provisioned; no secret request needed.
-- Streaming uses SSE through a TanStack server route (`src/routes/api/zeno.stream.ts`) since `createServerFn` returns serializable data, not streams. Client reads via `fetch` + reader.
-- All `src/integrations/supabase/*` files remain untouched (auto-generated).
-- Migrations are presented one-per-phase for clear approval gates.
-- No new top-level deps beyond `dompurify` + types in Phase 1.
+**Credit 3 — Audio share view**
+- Extend `src/lib/cloudSync.functions.ts` `createShareToken` to accept `type: "summary" | "audio"` and store an audio snapshot `{ patientName, reportDate, language, summaryText }` (script only — no raw biomarkers). Keep 1-hour expiry.
+- `src/components/results/AudioShareView.tsx` — minimal centered layout, big 88px play button, progress bar, live expiry countdown (red when expired), brand CTA. Reads snapshot via the existing public-read path in `share.functions.ts`.
+- Extend `src/routes/s.$token.tsx` to branch on `shareType === "audio"` and render `AudioShareView`.
 
-## What to do now
+**Credit 4 — Share modal audio option**
+- Extend `src/components/results/ShareModal.tsx`: divider + "Share as audio" section with Mic icon, copy-link button, WhatsApp button. Reuses the existing token-mint flow with `type: "audio"`. Stores the script built via `AudioService.buildScript(result, currentUiLanguage)`.
 
-Approve to start **Phase 1 only**. After it's in and verified, say "continue" and I'll plan/build Phase 2.
+**Credit 5 — Polish + QA**
+- Wire `getAvailableLanguages()` into the selector. Verify Chrome 14s keep-alive. Mobile viewport check. Tamil/Hindi voice-missing tooltip with OS-settings hint. Accessibility audit pass.
+- Post-phase manual checklist run.
+
+---
+
+### D7 — Family Profiles
+
+**Credit 1 — Schema + types (migration)**
+- Migration creates `public.family_profiles` (with GRANTs to authenticated + service_role, RLS, updated_at trigger).
+- Adds `profile_id uuid references family_profiles(id) on delete set null` to `public.reports` + index.
+- Adds `profile_id` to `public.scan_results` similarly (for parity).
+- **App-side fallback** instead of `auth.users` trigger: on first authenticated load, if user has zero profiles, create a primary "Self" profile via a `createServerFn` (`requireSupabaseAuth`).
+- `src/types/profile.ts`: `FamilyProfile`, `AVATAR_COLORS` const tuple (6 named colors), `ProfileContextType`.
+
+**Credit 2 — Profile context + scoping**
+- `src/contexts/ProfileContext.tsx` with `ProfileProvider` + `useProfiles` hook (fetch, set active, create, update, delete; activeProfile persisted per-user in localStorage; auto-create Self on first load if empty).
+- Mount `<ProfileProvider>` inside `src/routes/__root.tsx` (after auth wiring, before `<Outlet />`).
+- Scope reads: update `useReportHistory` and `useScanHistory` to accept/filter by `activeProfile.id` (fall back to all when null = legacy data).
+- Scope writes: `analyze.functions.ts` + `scanAnalysis.functions.ts` / cloud-sync inserts include `profile_id` from active profile (passed from client at save time).
+
+**Credit 3 — ProfileSwitcher in Navbar**
+- `src/components/profile/ProfileAvatar.tsx` — colored circle with initial, sm/md/lg, active ring.
+- `src/components/profile/ProfileSwitcher.tsx` — pill trigger + dropdown listing profiles with active checkmark + "Add family member" row. Replaces the existing initial avatar in `Navbar.tsx` `UserMenu`. Single-profile users see avatar that opens `CreateProfileModal` directly.
+
+**Credit 4 — CreateProfileModal**
+- `src/components/profile/CreateProfileModal.tsx` — name (≤30), relationship pill grid, age stepper, gender pills, avatar color swatches, live preview, success animation. Reused for edit mode in D7 credit 5.
+
+**Credit 5 — History scoping UI + /settings + RLS audit**
+- History page: header chip "Showing reports for [avatar] [name]" + switcher; auto-refetch on profile change.
+- New `src/routes/settings.tsx` under `_authenticated` (creating that layout if not already present). Sections:
+  - Account: email (read-only), "Change password" (triggers reset email), "Delete account" (typed confirm).
+  - Family profiles: list with edit (CreateProfileModal in update mode) + delete (primary is non-deletable; confirm dialog).
+- Migration to add a SELECT policy on `reports`/`scan_results` allowing access via owned profile_id (defense in depth alongside existing user_id policies).
+- Run `supabase--linter` after migrations.
+
+---
+
+### Technical notes
+
+- **No `auth.users` trigger.** Self-profile creation lives in app code (server fn called by `ProfileProvider`) to avoid mutating Supabase-reserved schemas.
+- **Backwards compatibility.** Existing reports have `profile_id = NULL`; treat as belonging to the user's primary profile in queries (`.or(profile_id.eq.<id>,profile_id.is.null)` while activeProfile is primary; strict `.eq` for non-primary). A one-time backfill is *not* run automatically; users see legacy reports under Self.
+- **Share view + audio script.** The existing `snapshot` jsonb column already carries the share payload; we extend it with a discriminated shape: `{ kind: "summary", ... } | { kind: "audio", summaryText, language, ... }`. No schema change needed for D6.
+- **Server-fn boundary.** Profile CRUD goes through `createServerFn` + `requireSupabaseAuth` to keep RLS honest and avoid client-side admin clients.
+- **Tokens.** Continue using existing `createShareToken` server fn — we only widen the snapshot shape and the route dispatcher.
+- **Accessibility + i18n.** Audio player uses ARIA live regions; language labels come from `i18n/locales/*.json`.
+- **Out of scope.** No WhatsApp bridge changes, no cross-profile analytics, no audit logging.

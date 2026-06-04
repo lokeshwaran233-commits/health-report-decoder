@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Copy, FileText, MessageSquare } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/rx/Button";
+import { AudioPlayer } from "@/components/results/AudioPlayer";
 import type { AnalysisResult } from "@/types/report";
 
 export interface InsightsSectionProps {

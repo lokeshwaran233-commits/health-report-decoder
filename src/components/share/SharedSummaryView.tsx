@@ -1,8 +1,8 @@
 import { Link } from "@tanstack/react-router";
-import type { ShareSnapshot } from "@/lib/share.functions";
+import type { SummaryShareSnapshot } from "@/lib/share.functions";
 
 export interface SharedSummaryViewProps {
-  snapshot: ShareSnapshot;
+  snapshot: SummaryShareSnapshot;
 }
 
 export function SharedSummaryView({ snapshot }: SharedSummaryViewProps) {

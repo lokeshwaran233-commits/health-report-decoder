@@ -14,6 +14,45 @@ export type Database = {
   }
   public: {
     Tables: {
+      family_profiles: {
+        Row: {
+          age: number | null
+          avatar_color: string
+          created_at: string
+          gender: string | null
+          id: string
+          is_primary: boolean
+          name: string
+          relationship: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          age?: number | null
+          avatar_color?: string
+          created_at?: string
+          gender?: string | null
+          id?: string
+          is_primary?: boolean
+          name: string
+          relationship?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          age?: number | null
+          avatar_color?: string
+          created_at?: string
+          gender?: string | null
+          id?: string
+          is_primary?: boolean
+          name?: string
+          relationship?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       reports: {
         Row: {
           biomarkers: Json
@@ -23,6 +62,7 @@ export type Database = {
           id: string
           lab_name: string | null
           patient_name: string | null
+          profile_id: string | null
           report_date: string | null
           status_counts: Json
           summary: string
@@ -36,6 +76,7 @@ export type Database = {
           id?: string
           lab_name?: string | null
           patient_name?: string | null
+          profile_id?: string | null
           report_date?: string | null
           status_counts: Json
           summary: string
@@ -49,12 +90,21 @@ export type Database = {
           id?: string
           lab_name?: string | null
           patient_name?: string | null
+          profile_id?: string | null
           report_date?: string | null
           status_counts?: Json
           summary?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "reports_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "family_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       scan_results: {
         Row: {
@@ -71,6 +121,7 @@ export type Database = {
           layman_output: Json
           modality: string
           professional_output: Json
+          profile_id: string | null
           urgency: string | null
           user_id: string
         }
@@ -88,6 +139,7 @@ export type Database = {
           layman_output: Json
           modality: string
           professional_output: Json
+          profile_id?: string | null
           urgency?: string | null
           user_id: string
         }
@@ -105,10 +157,19 @@ export type Database = {
           layman_output?: Json
           modality?: string
           professional_output?: Json
+          profile_id?: string | null
           urgency?: string | null
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "scan_results_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "family_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       share_tokens: {
         Row: {

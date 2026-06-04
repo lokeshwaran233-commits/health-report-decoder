@@ -24,7 +24,8 @@ const countsSchema = z.object({
   flagged: z.number().int().nonnegative(),
 });
 
-const sharePayloadSchema = z.object({
+const summarySnapshotSchema = z.object({
+  kind: z.literal("summary").optional(),
   metadata: z.object({
     patientName: z.string().nullable(),
     reportDate: z.string().nullable(),
@@ -35,6 +36,20 @@ const sharePayloadSchema = z.object({
   doctorQuestions: z.array(z.string().max(2000)).max(20),
   contentWarning: z.string().nullable(),
 });
+
+const audioSnapshotSchema = z.object({
+  kind: z.literal("audio"),
+  metadata: z.object({
+    patientName: z.string().nullable(),
+    reportDate: z.string().nullable(),
+    labName: z.string().nullable(),
+  }),
+  language: z.string().min(2).max(8),
+  summaryText: z.string().min(1).max(20000),
+});
+
+const sharePayloadSchema = z.union([summarySnapshotSchema, audioSnapshotSchema]);
+
 
 function generateToken(): string {
   const bytes = new Uint8Array(9);

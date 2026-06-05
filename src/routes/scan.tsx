@@ -101,6 +101,13 @@ function ScanPage() {
   const save = useServerFn(saveScan);
   const { user } = useAuth();
 
+  const [consent, setConsent] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    return hasScanConsent();
+  });
+
+
+
   const [modality, setModality] = useState<ScanModality | null>(null);
   const [region, setRegion] = useState<BodyRegion>("chest_lungs");
   const [context, setContext] = useState("");

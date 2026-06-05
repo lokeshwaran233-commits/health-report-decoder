@@ -1,0 +1,1 @@
+DROP POLICY IF EXISTS "share_tokens public read valid" ON public.share_tokens;

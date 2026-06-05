@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { normaliseScanResult } from "@/lib/normalizeScan";
 import { buildScanPrompt } from "@/lib/scanPrompts";
 import type {
@@ -7,6 +8,9 @@ import type {
   ScanAnalysisError,
   ScanInterpretationResult,
 } from "@/types/scan";
+
+// Cap base64 image payloads at ~4.5 MB to prevent token-cost abuse.
+const MAX_IMAGE_B64 = 6_000_000;
 
 const langSchema = z.enum(["en", "ta", "hi", "te"]).optional();
 
@@ -63,7 +67,7 @@ const inputSchema = z.discriminatedUnion("type", [
   z.object({
     type: z.literal("scan_image"),
     modality: imageModalitySchema,
-    content: z.string().min(50),
+    content: z.string().min(50).max(MAX_IMAGE_B64),
     mimeType: z.string().min(3).max(64),
     bodyRegion: regionSchema,
     clinicalContext: z.string().max(2000).nullable().optional(),
@@ -111,6 +115,7 @@ function userInstructionFor(modality: ImageScanModality, bodyRegion: string): st
 }
 
 export const analyzeScan = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => inputSchema.parse(input))
   .handler(async ({ data }): Promise<ScanInterpretationResult> => {
     const apiKey = process.env.LOVABLE_API_KEY;

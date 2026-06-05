@@ -496,5 +496,6 @@ function ScanPage() {
         </section>
       )}
     </div>
+    </>
   );
 }

@@ -96,7 +96,7 @@ function ProfilePage() {
     }
     const load = async () => {
       try {
-        const { data } = await supabase
+        const { data } = await db
           .from("profiles")
           .select("*")
           .eq("id", user.id)
@@ -179,7 +179,7 @@ function ProfilePage() {
   const save = async () => {
     setIsSaving(true);
     try {
-      const { error } = await supabase
+      const { error } = await db
         .from("profiles")
         .upsert({
           id: user.id,

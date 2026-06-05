@@ -255,7 +255,15 @@ function ScanPage() {
   };
 
   return (
+    <>
+      {!consent && (
+        <ConsentModal
+          onAccept={() => setConsent(true)}
+          onDecline={() => void navigate({ to: "/" })}
+        />
+      )}
     <div className="mx-auto max-w-4xl px-4 md:px-6 pt-24 pb-16 space-y-8">
+
       <header className="space-y-2">
         <h1 className="text-3xl md:text-4xl font-semibold text-brand-dark tracking-tight">
           Scan Decoder

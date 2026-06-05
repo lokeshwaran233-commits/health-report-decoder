@@ -67,7 +67,7 @@ const inputSchema = z.discriminatedUnion("type", [
   z.object({
     type: z.literal("scan_image"),
     modality: imageModalitySchema,
-    content: z.string().min(50),
+    content: z.string().min(50).max(MAX_IMAGE_B64),
     mimeType: z.string().min(3).max(64),
     bodyRegion: regionSchema,
     clinicalContext: z.string().max(2000).nullable().optional(),

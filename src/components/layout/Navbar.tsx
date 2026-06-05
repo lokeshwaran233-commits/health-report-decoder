@@ -165,11 +165,7 @@ export function Navbar() {
         </Link>
       );
     }
-    return (
-      <span key={link.id} className="text-sm text-brand-muted cursor-default">
-        {link.label}
-      </span>
-    );
+    return null;
   };
 
   const handleMobileNav = (link: NavLink) => {

@@ -14,6 +14,10 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 
+// Cast until generated DB types include the new `profiles` table.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const db = supabase as any;
+
 export const Route = createFileRoute("/profile")({
   head: () => ({
     meta: [

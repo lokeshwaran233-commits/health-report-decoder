@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { normaliseScanResult } from "@/lib/normalizeScan";
 import { buildScanPrompt } from "@/lib/scanPrompts";
 import type {
@@ -7,6 +8,9 @@ import type {
   ScanAnalysisError,
   ScanInterpretationResult,
 } from "@/types/scan";
+
+// Cap base64 image payloads at ~4.5 MB to prevent token-cost abuse.
+const MAX_IMAGE_B64 = 6_000_000;
 
 const langSchema = z.enum(["en", "ta", "hi", "te"]).optional();
 

@@ -24,26 +24,24 @@ const countsSchema = z.object({
   flagged: z.number().int().nonnegative(),
 });
 
+const shareMetadataSchema = z.object({
+  patientName: z.string().max(300).nullable(),
+  reportDate: z.string().max(100).nullable(),
+  labName: z.string().max(300).nullable(),
+});
+
 const summarySnapshotSchema = z.object({
   kind: z.literal("summary").optional(),
-  metadata: z.object({
-    patientName: z.string().nullable(),
-    reportDate: z.string().nullable(),
-    labName: z.string().nullable(),
-  }),
+  metadata: shareMetadataSchema,
   statusCounts: countsSchema,
   summary: z.string().max(20000),
   doctorQuestions: z.array(z.string().max(2000)).max(20),
-  contentWarning: z.string().nullable(),
+  contentWarning: z.string().max(1000).nullable(),
 });
 
 const audioSnapshotSchema = z.object({
   kind: z.literal("audio"),
-  metadata: z.object({
-    patientName: z.string().nullable(),
-    reportDate: z.string().nullable(),
-    labName: z.string().nullable(),
-  }),
+  metadata: shareMetadataSchema,
   language: z.string().min(2).max(8),
   summaryText: z.string().min(1).max(20000),
 });

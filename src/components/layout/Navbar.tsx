@@ -94,6 +94,13 @@ function UserMenu() {
           <div className="px-3 py-2 text-xs text-brand-muted truncate">
             {user.email}
           </div>
+          <Link
+            to="/profile"
+            onClick={() => setOpen(false)}
+            className="w-full text-left px-3 py-2 text-sm text-brand-dark hover:bg-brand-surface inline-flex items-center gap-2"
+          >
+            My profile
+          </Link>
           <button
             type="button"
             onClick={() => {

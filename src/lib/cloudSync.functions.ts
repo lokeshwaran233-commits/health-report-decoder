@@ -146,9 +146,10 @@ export const clearAllReports = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
-// Public — no auth required. Anyone (signed-in or out) can mint a share token
-// for a snapshot they already see in their own browser.
+// Auth-required: signed-in users mint share tokens for snapshots they own.
+// Keeping this open allowed anonymous attackers to spam the share_tokens table.
 export const createShareToken = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) =>
     z
       .object({

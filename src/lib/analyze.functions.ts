@@ -188,6 +188,7 @@ function tryParseJson(raw: string): unknown {
 }
 
 export const analyzeReport = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => inputSchema.parse(input))
   .handler(async ({ data }): Promise<AnalysisResult> => {
     const apiKey = process.env.LOVABLE_API_KEY;

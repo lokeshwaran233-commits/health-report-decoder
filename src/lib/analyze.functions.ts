@@ -1,10 +1,14 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { normalizeAnalysisResult } from "@/lib/normalizeAnalysis";
 import { withDerivedBiomarkers } from "@/lib/clinicalDerivations";
 import type { AnalysisError, AnalysisResult } from "@/types/report";
 
 const langSchema = z.enum(["en", "ta", "hi", "te"]).optional();
+
+// Cap base64 image payloads at ~4.5 MB to prevent token-cost abuse.
+const MAX_IMAGE_B64 = 6_000_000;
 
 const inputSchema = z.discriminatedUnion("type", [
   z.object({
@@ -14,7 +18,7 @@ const inputSchema = z.discriminatedUnion("type", [
   }),
   z.object({
     type: z.literal("image"),
-    content: z.string().min(50),
+    content: z.string().min(50).max(MAX_IMAGE_B64),
     mimeType: z.string().min(3).max(64),
     language: langSchema,
   }),

@@ -11,6 +11,7 @@ import { scanStore } from "@/lib/scanStore";
 import { extractTextFromPDF } from "@/lib/pdfExtract";
 import { validateUploadedFile } from "@/lib/security/fileValidator";
 import { useAuth } from "@/hooks/useAuth";
+import { ConsentModal, hasScanConsent } from "@/components/scan/ConsentModal";
 import type {
   BodyRegion,
   ImageScanModality,

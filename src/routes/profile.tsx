@@ -163,11 +163,11 @@ function ProfilePage() {
     try {
       const ext = file.name.split(".").pop() ?? "jpg";
       const path = `${user.id}/avatar-${Date.now()}.${ext}`;
-      const { error: upErr } = await supabase.storage
+      const { error: upErr } = await db.storage
         .from("avatars")
         .upload(path, file, { upsert: true, contentType: file.type });
       if (upErr) throw upErr;
-      const { data } = supabase.storage.from("avatars").getPublicUrl(path);
+      const { data } = db.storage.from("avatars").getPublicUrl(path);
       setAvatarPreview(data.publicUrl);
       setProfile((p) => ({ ...p, avatar_url: data.publicUrl }));
     } catch (err) {

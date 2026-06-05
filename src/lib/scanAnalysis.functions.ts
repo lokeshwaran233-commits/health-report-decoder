@@ -115,6 +115,7 @@ function userInstructionFor(modality: ImageScanModality, bodyRegion: string): st
 }
 
 export const analyzeScan = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => inputSchema.parse(input))
   .handler(async ({ data }): Promise<ScanInterpretationResult> => {
     const apiKey = process.env.LOVABLE_API_KEY;

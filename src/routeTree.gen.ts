@@ -9,15 +9,24 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as ZenoRouteImport } from './routes/zeno'
 import { Route as ScanResultsRouteImport } from './routes/scan-results'
 import { Route as ScanRouteImport } from './routes/scan'
 import { Route as ResultsRouteImport } from './routes/results'
+import { Route as ProfileRouteImport } from './routes/profile'
+import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as HistoryRouteImport } from './routes/history'
 import { Route as AuthRouteImport } from './routes/auth'
+import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as STokenRouteImport } from './routes/s.$token'
 import { Route as AuthResetPasswordRouteImport } from './routes/auth.reset-password'
 
+const ZenoRoute = ZenoRouteImport.update({
+  id: '/zeno',
+  path: '/zeno',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ScanResultsRoute = ScanResultsRouteImport.update({
   id: '/scan-results',
   path: '/scan-results',
@@ -33,6 +42,16 @@ const ResultsRoute = ResultsRouteImport.update({
   path: '/results',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ProfileRoute = ProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PrivacyRoute = PrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const HistoryRoute = HistoryRouteImport.update({
   id: '/history',
   path: '/history',
@@ -41,6 +60,11 @@ const HistoryRoute = HistoryRouteImport.update({
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AboutRoute = AboutRouteImport.update({
+  id: '/about',
+  path: '/about',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -61,32 +85,44 @@ const AuthResetPasswordRoute = AuthResetPasswordRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/about': typeof AboutRoute
   '/auth': typeof AuthRouteWithChildren
   '/history': typeof HistoryRoute
+  '/privacy': typeof PrivacyRoute
+  '/profile': typeof ProfileRoute
   '/results': typeof ResultsRoute
   '/scan': typeof ScanRoute
   '/scan-results': typeof ScanResultsRoute
+  '/zeno': typeof ZenoRoute
   '/auth/reset-password': typeof AuthResetPasswordRoute
   '/s/$token': typeof STokenRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/about': typeof AboutRoute
   '/auth': typeof AuthRouteWithChildren
   '/history': typeof HistoryRoute
+  '/privacy': typeof PrivacyRoute
+  '/profile': typeof ProfileRoute
   '/results': typeof ResultsRoute
   '/scan': typeof ScanRoute
   '/scan-results': typeof ScanResultsRoute
+  '/zeno': typeof ZenoRoute
   '/auth/reset-password': typeof AuthResetPasswordRoute
   '/s/$token': typeof STokenRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/about': typeof AboutRoute
   '/auth': typeof AuthRouteWithChildren
   '/history': typeof HistoryRoute
+  '/privacy': typeof PrivacyRoute
+  '/profile': typeof ProfileRoute
   '/results': typeof ResultsRoute
   '/scan': typeof ScanRoute
   '/scan-results': typeof ScanResultsRoute
+  '/zeno': typeof ZenoRoute
   '/auth/reset-password': typeof AuthResetPasswordRoute
   '/s/$token': typeof STokenRoute
 }
@@ -94,47 +130,70 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/about'
     | '/auth'
     | '/history'
+    | '/privacy'
+    | '/profile'
     | '/results'
     | '/scan'
     | '/scan-results'
+    | '/zeno'
     | '/auth/reset-password'
     | '/s/$token'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/about'
     | '/auth'
     | '/history'
+    | '/privacy'
+    | '/profile'
     | '/results'
     | '/scan'
     | '/scan-results'
+    | '/zeno'
     | '/auth/reset-password'
     | '/s/$token'
   id:
     | '__root__'
     | '/'
+    | '/about'
     | '/auth'
     | '/history'
+    | '/privacy'
+    | '/profile'
     | '/results'
     | '/scan'
     | '/scan-results'
+    | '/zeno'
     | '/auth/reset-password'
     | '/s/$token'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AboutRoute: typeof AboutRoute
   AuthRoute: typeof AuthRouteWithChildren
   HistoryRoute: typeof HistoryRoute
+  PrivacyRoute: typeof PrivacyRoute
+  ProfileRoute: typeof ProfileRoute
   ResultsRoute: typeof ResultsRoute
   ScanRoute: typeof ScanRoute
   ScanResultsRoute: typeof ScanResultsRoute
+  ZenoRoute: typeof ZenoRoute
   STokenRoute: typeof STokenRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/zeno': {
+      id: '/zeno'
+      path: '/zeno'
+      fullPath: '/zeno'
+      preLoaderRoute: typeof ZenoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/scan-results': {
       id: '/scan-results'
       path: '/scan-results'
@@ -156,6 +215,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ResultsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/profile': {
+      id: '/profile'
+      path: '/profile'
+      fullPath: '/profile'
+      preLoaderRoute: typeof ProfileRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/privacy': {
+      id: '/privacy'
+      path: '/privacy'
+      fullPath: '/privacy'
+      preLoaderRoute: typeof PrivacyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/history': {
       id: '/history'
       path: '/history'
@@ -168,6 +241,13 @@ declare module '@tanstack/react-router' {
       path: '/auth'
       fullPath: '/auth'
       preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/about': {
+      id: '/about'
+      path: '/about'
+      fullPath: '/about'
+      preLoaderRoute: typeof AboutRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -206,23 +286,17 @@ const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AboutRoute: AboutRoute,
   AuthRoute: AuthRouteWithChildren,
   HistoryRoute: HistoryRoute,
+  PrivacyRoute: PrivacyRoute,
+  ProfileRoute: ProfileRoute,
   ResultsRoute: ResultsRoute,
   ScanRoute: ScanRoute,
   ScanResultsRoute: ScanResultsRoute,
+  ZenoRoute: ZenoRoute,
   STokenRoute: STokenRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

@@ -45,17 +45,17 @@ function scrollToHowItWorks() {
 
 type NavLink =
   | { id: string; label: string; kind: "scroll" }
-  | { id: string; label: string; kind: "route"; to: "/history" | "/scan" }
-  | { id: string; label: string; kind: "placeholder" };
+  | { id: string; label: string; kind: "route"; to: "/history" | "/scan" | "/zeno" | "/about" | "/privacy" | "/profile" };
 
 function useNavLinks(): NavLink[] {
   const { t } = useTranslation();
   return [
     { id: "how-it-works", label: t("nav.howItWorks"), kind: "scroll" },
     { id: "scan", label: "Scan Decoder", kind: "route", to: "/scan" },
+    { id: "zeno", label: "Zeno AI", kind: "route", to: "/zeno" },
     { id: "history", label: t("nav.history"), kind: "route", to: "/history" },
-    { id: "privacy", label: t("nav.privacy"), kind: "placeholder" },
-    { id: "about", label: t("nav.about"), kind: "placeholder" },
+    { id: "about", label: t("nav.about"), kind: "route", to: "/about" },
+    { id: "privacy", label: t("nav.privacy"), kind: "route", to: "/privacy" },
   ];
 }
 
@@ -94,6 +94,13 @@ function UserMenu() {
           <div className="px-3 py-2 text-xs text-brand-muted truncate">
             {user.email}
           </div>
+          <Link
+            to="/profile"
+            onClick={() => setOpen(false)}
+            className="w-full text-left px-3 py-2 text-sm text-brand-dark hover:bg-brand-surface inline-flex items-center gap-2"
+          >
+            My profile
+          </Link>
           <button
             type="button"
             onClick={() => {
@@ -165,11 +172,7 @@ export function Navbar() {
         </Link>
       );
     }
-    return (
-      <span key={link.id} className="text-sm text-brand-muted cursor-default">
-        {link.label}
-      </span>
-    );
+    return null;
   };
 
   const handleMobileNav = (link: NavLink) => {

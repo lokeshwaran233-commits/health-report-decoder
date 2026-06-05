@@ -11,6 +11,7 @@ import { scanStore } from "@/lib/scanStore";
 import { extractTextFromPDF } from "@/lib/pdfExtract";
 import { validateUploadedFile } from "@/lib/security/fileValidator";
 import { useAuth } from "@/hooks/useAuth";
+import { ConsentModal, hasScanConsent } from "@/components/scan/ConsentModal";
 import type {
   BodyRegion,
   ImageScanModality,
@@ -100,6 +101,13 @@ function ScanPage() {
   const analyze = useServerFn(analyzeScan);
   const save = useServerFn(saveScan);
   const { user } = useAuth();
+
+  const [consent, setConsent] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    return hasScanConsent();
+  });
+
+
 
   const [modality, setModality] = useState<ScanModality | null>(null);
   const [region, setRegion] = useState<BodyRegion>("chest_lungs");
@@ -247,7 +255,15 @@ function ScanPage() {
   };
 
   return (
+    <>
+      {!consent && (
+        <ConsentModal
+          onAccept={() => setConsent(true)}
+          onDecline={() => void navigate({ to: "/" })}
+        />
+      )}
     <div className="mx-auto max-w-4xl px-4 md:px-6 pt-24 pb-16 space-y-8">
+
       <header className="space-y-2">
         <h1 className="text-3xl md:text-4xl font-semibold text-brand-dark tracking-tight">
           Scan Decoder
@@ -480,5 +496,6 @@ function ScanPage() {
         </section>
       )}
     </div>
+    </>
   );
 }

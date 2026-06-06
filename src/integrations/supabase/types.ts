@@ -14,6 +14,69 @@ export type Database = {
   }
   public: {
     Tables: {
+      biomarker_history: {
+        Row: {
+          biomarker_name: string
+          created_at: string
+          id: string
+          lab_ref_max: number | null
+          lab_ref_min: number | null
+          profile_id: string | null
+          raw_name: string
+          report_date: string | null
+          report_id: string | null
+          status: string | null
+          unit: string | null
+          user_id: string
+          value: number | null
+        }
+        Insert: {
+          biomarker_name: string
+          created_at?: string
+          id?: string
+          lab_ref_max?: number | null
+          lab_ref_min?: number | null
+          profile_id?: string | null
+          raw_name: string
+          report_date?: string | null
+          report_id?: string | null
+          status?: string | null
+          unit?: string | null
+          user_id: string
+          value?: number | null
+        }
+        Update: {
+          biomarker_name?: string
+          created_at?: string
+          id?: string
+          lab_ref_max?: number | null
+          lab_ref_min?: number | null
+          profile_id?: string | null
+          raw_name?: string
+          report_date?: string | null
+          report_id?: string | null
+          status?: string | null
+          unit?: string | null
+          user_id?: string
+          value?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "biomarker_history_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "family_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "biomarker_history_report_id_fkey"
+            columns: ["report_id"]
+            isOneToOne: false
+            referencedRelation: "reports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       family_profiles: {
         Row: {
           age: number | null
@@ -53,15 +116,60 @@ export type Database = {
         }
         Relationships: []
       }
+      guard_violations_log: {
+        Row: {
+          created_at: string
+          engine_version: string | null
+          id: string
+          report_id: string | null
+          severity: string | null
+          violation_text: string | null
+        }
+        Insert: {
+          created_at?: string
+          engine_version?: string | null
+          id?: string
+          report_id?: string | null
+          severity?: string | null
+          violation_text?: string | null
+        }
+        Update: {
+          created_at?: string
+          engine_version?: string | null
+          id?: string
+          report_id?: string | null
+          severity?: string | null
+          violation_text?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "guard_violations_log_report_id_fkey"
+            columns: ["report_id"]
+            isOneToOne: false
+            referencedRelation: "reports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       reports: {
         Row: {
           biomarkers: Json
+          clinical_engine_version: string | null
           content_warning: string | null
           created_at: string
+          critical_alerts: Json | null
+          data_quality_warnings: Json | null
           doctor_questions: Json
+          evaluated_biomarkers: Json | null
+          extraction_raw: Json | null
+          guard_had_critical: boolean | null
+          guard_violations_count: number | null
           id: string
           lab_name: string | null
+          overall_clinical_score: number | null
           patient_name: string | null
+          pattern_evaluations: Json | null
+          priority_findings: Json | null
           profile_id: string | null
           report_date: string | null
           status_counts: Json
@@ -70,12 +178,22 @@ export type Database = {
         }
         Insert: {
           biomarkers: Json
+          clinical_engine_version?: string | null
           content_warning?: string | null
           created_at?: string
+          critical_alerts?: Json | null
+          data_quality_warnings?: Json | null
           doctor_questions: Json
+          evaluated_biomarkers?: Json | null
+          extraction_raw?: Json | null
+          guard_had_critical?: boolean | null
+          guard_violations_count?: number | null
           id?: string
           lab_name?: string | null
+          overall_clinical_score?: number | null
           patient_name?: string | null
+          pattern_evaluations?: Json | null
+          priority_findings?: Json | null
           profile_id?: string | null
           report_date?: string | null
           status_counts: Json
@@ -84,12 +202,22 @@ export type Database = {
         }
         Update: {
           biomarkers?: Json
+          clinical_engine_version?: string | null
           content_warning?: string | null
           created_at?: string
+          critical_alerts?: Json | null
+          data_quality_warnings?: Json | null
           doctor_questions?: Json
+          evaluated_biomarkers?: Json | null
+          extraction_raw?: Json | null
+          guard_had_critical?: boolean | null
+          guard_violations_count?: number | null
           id?: string
           lab_name?: string | null
+          overall_clinical_score?: number | null
           patient_name?: string | null
+          pattern_evaluations?: Json | null
+          priority_findings?: Json | null
           profile_id?: string | null
           report_date?: string | null
           status_counts?: Json

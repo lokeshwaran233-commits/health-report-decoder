@@ -5,7 +5,9 @@ import { Button } from "@/components/rx/Button";
 import { DropZone } from "@/components/upload/DropZone";
 import { FilePreview } from "@/components/upload/FilePreview";
 import { PasteInput } from "@/components/upload/PasteInput";
+import { ContextQuestionsModal } from "@/components/upload/ContextQuestionsModal";
 import { useFileUpload } from "@/hooks/useFileUpload";
+import { uploadStore } from "@/lib/uploadStore";
 
 type TabId = "upload" | "paste";
 
@@ -20,6 +22,9 @@ export function UploadCard() {
     reset,
     isDragging,
     setIsDragging,
+    pendingNavigation,
+    proceedToResults,
+    cancelPending,
   } = useFileUpload();
 
   const isExtracting = uploadState.status === "extracting";

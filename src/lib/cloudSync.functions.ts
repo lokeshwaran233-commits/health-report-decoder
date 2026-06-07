@@ -12,10 +12,11 @@ const analysisResultSchema = z.object({
     labName: z.string().nullable().optional(),
     uploadedAt: z.string(),
   }),
-  biomarkers: z.array(z.unknown()),
+  biomarkers: z.array(z.any()),
   summary: z.string(),
   doctorQuestions: z.array(z.string()),
   contentWarning: z.string().nullable(),
+  clinicalEngine: z.any().nullable().optional(),
 });
 
 const countsSchema = z.object({

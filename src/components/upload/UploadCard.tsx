@@ -121,6 +121,15 @@ export function UploadCard() {
           </div>
         )}
       </div>
+
+      <ContextQuestionsModal
+        open={pendingNavigation}
+        onSubmit={(ctx) => {
+          uploadStore.setClinicalContext(ctx);
+          proceedToResults();
+        }}
+        onSkip={cancelPending}
+      />
     </section>
   );
 }

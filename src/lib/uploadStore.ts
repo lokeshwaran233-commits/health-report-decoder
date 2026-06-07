@@ -84,7 +84,15 @@ export const uploadStore = {
       historyView: false,
       receivedAt: null,
       lastResult: null,
+      clinicalContext: null,
     };
+  },
+
+  setClinicalContext(ctx: ClinicalContext | null): void {
+    state = { ...state, clinicalContext: ctx };
+  },
+  getClinicalContext(): ClinicalContext | null {
+    return state.clinicalContext;
   },
 
   setLastResult(result: AnalysisResult): void {

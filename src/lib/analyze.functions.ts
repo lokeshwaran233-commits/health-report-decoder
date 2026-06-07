@@ -261,7 +261,13 @@ export const analyzeReport = createServerFn({ method: "POST" })
             temperature: 0.1,
             max_tokens: 6000,
             messages: [
-              { role: "system", content: SYSTEM_PROMPT + buildLanguageInstruction(data.language) },
+              {
+                role: "system",
+                content:
+                  SYSTEM_PROMPT +
+                  buildLanguageInstruction(data.language) +
+                  buildContextInstruction(data.clinicalContext),
+              },
               userMessage,
             ],
           }),

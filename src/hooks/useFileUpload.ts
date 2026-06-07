@@ -16,6 +16,9 @@ export interface UseFileUploadReturn {
   reset: () => void;
   isDragging: boolean;
   setIsDragging: (v: boolean) => void;
+  pendingNavigation: boolean;
+  proceedToResults: () => void;
+  cancelPending: () => void;
 }
 
 const INITIAL_STATE: UploadState = { status: "idle" };

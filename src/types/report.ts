@@ -73,17 +73,26 @@ export interface GuardViolation {
   severity: string;
 }
 
+type JsonValue =
+  | string
+  | number
+  | boolean
+  | null
+  | JsonValue[]
+  | { [k: string]: JsonValue };
+
 export interface ClinicalEngineSummary {
   version: string;
-  patternEvaluations: unknown[];
-  priorityFindings: unknown[];
-  criticalAlerts: unknown[];
+  patternEvaluations: JsonValue[];
+  priorityFindings: JsonValue[];
+  criticalAlerts: JsonValue[];
   dataQualityWarnings: string[];
   overallClinicalScore: number;
-  evaluatedBiomarkers: unknown[];
+  evaluatedBiomarkers: JsonValue[];
   guardHadCritical: boolean;
   guardViolations: GuardViolation[];
 }
+
 
 export interface AnalysisResult {
   id: string;

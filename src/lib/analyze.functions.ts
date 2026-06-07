@@ -3,9 +3,23 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { normalizeAnalysisResult } from "@/lib/normalizeAnalysis";
 import { withDerivedBiomarkers } from "@/lib/clinicalDerivations";
-import type { AnalysisError, AnalysisResult } from "@/types/report";
+import { runClinicalRulesEngine } from "@/lib/clinicalEngine/rulesEngine";
+import { runHallucinationGuard } from "@/lib/clinicalEngine/hallucinationGuard";
+import type { ExtractedBiomarker } from "@/lib/clinicalEngine/types";
+import type { AnalysisError, AnalysisResult, ClinicalEngineSummary, GuardViolation } from "@/types/report";
 
 const langSchema = z.enum(["en", "ta", "hi", "te"]).optional();
+
+const clinicalContextSchema = z
+  .object({
+    age: z.number().int().min(0).max(130).nullable().optional(),
+    sex: z.enum(["male", "female", "other"]).nullable().optional(),
+    symptoms: z.string().max(2000).nullable().optional(),
+    conditions: z.string().max(2000).nullable().optional(),
+    medications: z.string().max(2000).nullable().optional(),
+    isPregnant: z.boolean().nullable().optional(),
+  })
+  .optional();
 
 // Cap base64 image payloads at ~4.5 MB to prevent token-cost abuse.
 const MAX_IMAGE_B64 = 6_000_000;
@@ -15,14 +29,17 @@ const inputSchema = z.discriminatedUnion("type", [
     type: z.literal("text"),
     content: z.string().min(20).max(50000),
     language: langSchema,
+    clinicalContext: clinicalContextSchema,
   }),
   z.object({
     type: z.literal("image"),
     content: z.string().min(50).max(MAX_IMAGE_B64),
     mimeType: z.string().min(3).max(64),
     language: langSchema,
+    clinicalContext: clinicalContextSchema,
   }),
 ]);
+
 
 const LANGUAGE_NAMES: Record<string, string> = {
   en: "English",

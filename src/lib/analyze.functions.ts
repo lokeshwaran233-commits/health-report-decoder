@@ -323,5 +323,69 @@ export const analyzeReport = createServerFn({ method: "POST" })
         "Could not extract any biomarker values from this report. Please try pasting the text manually.",
       );
     }
-    return withDerivedBiomarkers(normalized);
+
+    const derived = withDerivedBiomarkers(normalized);
+
+    // ---- Hallucination guard on patient-facing text ----
+    const allViolations: GuardViolation[] = [];
+    let hadCritical = false;
+
+    const guardSummary = runHallucinationGuard(derived.summary);
+    if (guardSummary.violations.length > 0) {
+      allViolations.push(
+        ...guardSummary.violations.map((v) => ({ text: v.text, severity: v.severity })),
+      );
+    }
+    if (guardSummary.hadCriticalViolations) hadCritical = true;
+    derived.summary = guardSummary.sanitizedText;
+
+    derived.biomarkers = derived.biomarkers.map((b) => {
+      const pe = runHallucinationGuard(b.plainEnglish ?? "");
+      const de = runHallucinationGuard(b.deepExplanation ?? "");
+      if (pe.violations.length)
+        allViolations.push(
+          ...pe.violations.map((v) => ({ text: v.text, severity: v.severity })),
+        );
+      if (de.violations.length)
+        allViolations.push(
+          ...de.violations.map((v) => ({ text: v.text, severity: v.severity })),
+        );
+      if (pe.hadCriticalViolations || de.hadCriticalViolations) hadCritical = true;
+      return {
+        ...b,
+        plainEnglish: pe.sanitizedText,
+        deepExplanation: de.sanitizedText,
+      };
+    });
+
+    // ---- Deterministic rules engine on the extracted biomarkers ----
+    const extracted: ExtractedBiomarker[] = derived.biomarkers.map((b) => ({
+      name: b.name,
+      value: b.value,
+      unit: b.unit ?? null,
+      labRefMin: b.referenceRange?.low ?? null,
+      labRefMax: b.referenceRange?.high ?? null,
+      labRefText: null,
+    }));
+
+    let engineSummary: ClinicalEngineSummary | null = null;
+    try {
+      const engine = runClinicalRulesEngine(extracted);
+      engineSummary = {
+        version: "1.0",
+        patternEvaluations: JSON.parse(JSON.stringify(engine.patternEvaluations)),
+        priorityFindings: JSON.parse(JSON.stringify(engine.priorityFindings)),
+        criticalAlerts: JSON.parse(JSON.stringify(engine.criticalAlerts)),
+        dataQualityWarnings: engine.dataQualityWarnings,
+        overallClinicalScore: engine.overallClinicalScore,
+        evaluatedBiomarkers: JSON.parse(JSON.stringify(engine.evaluatedBiomarkers)),
+        guardHadCritical: hadCritical,
+        guardViolations: allViolations.slice(0, 50),
+      };
+    } catch (e) {
+      console.error("[analyzeReport] clinical engine failed", e);
+    }
+
+    derived.clinicalEngine = engineSummary;
+    return derived;
   });

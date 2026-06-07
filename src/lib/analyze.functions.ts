@@ -54,6 +54,19 @@ function buildLanguageInstruction(lang: string | undefined): string {
   return `\n\nLANGUAGE INSTRUCTION:\nGenerate ALL of the following fields in ${name}:\n- plainEnglish (biomarker explanation)\n- deepExplanation (biological significance)\n- summary (overall report narrative, all paragraphs)\n- doctorQuestions (all questions)\n- contentWarning (if any)\n\nKeep ALL of the following in English regardless of language setting:\n- Biomarker names (Haemoglobin, TSH, Vitamin D, etc.)\n- Units (g/dL, μIU/mL, ng/mL, etc.)\n- Numeric values\n- Medical abbreviations (CBC, LFT, etc.)\n- Lab name and patient name (as found in the report)\n\nThis ensures the content is readable and culturally appropriate while medical terms remain internationally standardised.`;
 }
 
+function buildContextInstruction(ctx: z.infer<typeof clinicalContextSchema>): string {
+  if (!ctx) return "";
+  const parts: string[] = [];
+  if (ctx.age != null) parts.push(`Age: ${ctx.age}`);
+  if (ctx.sex) parts.push(`Sex: ${ctx.sex}`);
+  if (ctx.isPregnant) parts.push(`Pregnant: yes`);
+  if (ctx.symptoms) parts.push(`Current symptoms: ${ctx.symptoms}`);
+  if (ctx.conditions) parts.push(`Known conditions: ${ctx.conditions}`);
+  if (ctx.medications) parts.push(`Current medications: ${ctx.medications}`);
+  if (parts.length === 0) return "";
+  return `\n\nPATIENT CONTEXT (use to personalise explanations and doctor questions; do NOT diagnose):\n${parts.join("\n")}`;
+}
+
 const SYSTEM_PROMPT = `You are a clinical-grade medical lab report analyzer. The text you receive may contain mixed content — lab report data alongside unrelated content such as resumes, letters, invoices, or other documents.
 
 Your job:

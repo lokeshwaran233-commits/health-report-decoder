@@ -59,6 +59,41 @@ export interface FollowUpTest {
   urgency: FollowUpUrgency;
 }
 
+export interface ClinicalContext {
+  age?: number | null;
+  sex?: "male" | "female" | "other" | null;
+  symptoms?: string | null;
+  conditions?: string | null;
+  medications?: string | null;
+  isPregnant?: boolean | null;
+}
+
+export interface GuardViolation {
+  text: string;
+  severity: string;
+}
+
+type JsonValue =
+  | string
+  | number
+  | boolean
+  | null
+  | JsonValue[]
+  | { [k: string]: JsonValue };
+
+export interface ClinicalEngineSummary {
+  version: string;
+  patternEvaluations: JsonValue[];
+  priorityFindings: JsonValue[];
+  criticalAlerts: JsonValue[];
+  dataQualityWarnings: string[];
+  overallClinicalScore: number;
+  evaluatedBiomarkers: JsonValue[];
+  guardHadCritical: boolean;
+  guardViolations: GuardViolation[];
+}
+
+
 export interface AnalysisResult {
   id: string;
   metadata: ReportMetadata;
@@ -68,6 +103,7 @@ export interface AnalysisResult {
   contentWarning: string | null;
   detectedPatterns: DetectedPattern[];
   followUpTests: FollowUpTest[];
+  clinicalEngine?: ClinicalEngineSummary | null;
 }
 
 export type UploadStatus =
@@ -89,8 +125,9 @@ export interface UploadState {
 export type SupportedLang = "en" | "ta" | "hi" | "te";
 
 export type AnalyzeInput =
-  | { type: "text"; content: string; language?: SupportedLang }
-  | { type: "image"; content: string; mimeType: string; language?: SupportedLang };
+  | { type: "text"; content: string; language?: SupportedLang; clinicalContext?: ClinicalContext }
+  | { type: "image"; content: string; mimeType: string; language?: SupportedLang; clinicalContext?: ClinicalContext };
+
 
 export interface FileMeta {
   name: string;

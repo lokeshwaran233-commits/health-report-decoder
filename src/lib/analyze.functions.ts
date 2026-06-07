@@ -3,9 +3,23 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { normalizeAnalysisResult } from "@/lib/normalizeAnalysis";
 import { withDerivedBiomarkers } from "@/lib/clinicalDerivations";
-import type { AnalysisError, AnalysisResult } from "@/types/report";
+import { runClinicalRulesEngine } from "@/lib/clinicalEngine/rulesEngine";
+import { runHallucinationGuard } from "@/lib/clinicalEngine/hallucinationGuard";
+import type { ExtractedBiomarker } from "@/lib/clinicalEngine/types";
+import type { AnalysisError, AnalysisResult, ClinicalEngineSummary, GuardViolation } from "@/types/report";
 
 const langSchema = z.enum(["en", "ta", "hi", "te"]).optional();
+
+const clinicalContextSchema = z
+  .object({
+    age: z.number().int().min(0).max(130).nullable().optional(),
+    sex: z.enum(["male", "female", "other"]).nullable().optional(),
+    symptoms: z.string().max(2000).nullable().optional(),
+    conditions: z.string().max(2000).nullable().optional(),
+    medications: z.string().max(2000).nullable().optional(),
+    isPregnant: z.boolean().nullable().optional(),
+  })
+  .optional();
 
 // Cap base64 image payloads at ~4.5 MB to prevent token-cost abuse.
 const MAX_IMAGE_B64 = 6_000_000;
@@ -15,14 +29,17 @@ const inputSchema = z.discriminatedUnion("type", [
     type: z.literal("text"),
     content: z.string().min(20).max(50000),
     language: langSchema,
+    clinicalContext: clinicalContextSchema,
   }),
   z.object({
     type: z.literal("image"),
     content: z.string().min(50).max(MAX_IMAGE_B64),
     mimeType: z.string().min(3).max(64),
     language: langSchema,
+    clinicalContext: clinicalContextSchema,
   }),
 ]);
+
 
 const LANGUAGE_NAMES: Record<string, string> = {
   en: "English",
@@ -35,6 +52,19 @@ function buildLanguageInstruction(lang: string | undefined): string {
   const name = LANGUAGE_NAMES[lang ?? "en"] ?? "English";
   if ((lang ?? "en") === "en") return "";
   return `\n\nLANGUAGE INSTRUCTION:\nGenerate ALL of the following fields in ${name}:\n- plainEnglish (biomarker explanation)\n- deepExplanation (biological significance)\n- summary (overall report narrative, all paragraphs)\n- doctorQuestions (all questions)\n- contentWarning (if any)\n\nKeep ALL of the following in English regardless of language setting:\n- Biomarker names (Haemoglobin, TSH, Vitamin D, etc.)\n- Units (g/dL, μIU/mL, ng/mL, etc.)\n- Numeric values\n- Medical abbreviations (CBC, LFT, etc.)\n- Lab name and patient name (as found in the report)\n\nThis ensures the content is readable and culturally appropriate while medical terms remain internationally standardised.`;
+}
+
+function buildContextInstruction(ctx: z.infer<typeof clinicalContextSchema>): string {
+  if (!ctx) return "";
+  const parts: string[] = [];
+  if (ctx.age != null) parts.push(`Age: ${ctx.age}`);
+  if (ctx.sex) parts.push(`Sex: ${ctx.sex}`);
+  if (ctx.isPregnant) parts.push(`Pregnant: yes`);
+  if (ctx.symptoms) parts.push(`Current symptoms: ${ctx.symptoms}`);
+  if (ctx.conditions) parts.push(`Known conditions: ${ctx.conditions}`);
+  if (ctx.medications) parts.push(`Current medications: ${ctx.medications}`);
+  if (parts.length === 0) return "";
+  return `\n\nPATIENT CONTEXT (use to personalise explanations and doctor questions; do NOT diagnose):\n${parts.join("\n")}`;
 }
 
 const SYSTEM_PROMPT = `You are a clinical-grade medical lab report analyzer. The text you receive may contain mixed content — lab report data alongside unrelated content such as resumes, letters, invoices, or other documents.
@@ -231,7 +261,13 @@ export const analyzeReport = createServerFn({ method: "POST" })
             temperature: 0.1,
             max_tokens: 6000,
             messages: [
-              { role: "system", content: SYSTEM_PROMPT + buildLanguageInstruction(data.language) },
+              {
+                role: "system",
+                content:
+                  SYSTEM_PROMPT +
+                  buildLanguageInstruction(data.language) +
+                  buildContextInstruction(data.clinicalContext),
+              },
               userMessage,
             ],
           }),
@@ -287,5 +323,69 @@ export const analyzeReport = createServerFn({ method: "POST" })
         "Could not extract any biomarker values from this report. Please try pasting the text manually.",
       );
     }
-    return withDerivedBiomarkers(normalized);
+
+    const derived = withDerivedBiomarkers(normalized);
+
+    // ---- Hallucination guard on patient-facing text ----
+    const allViolations: GuardViolation[] = [];
+    let hadCritical = false;
+
+    const guardSummary = runHallucinationGuard(derived.summary);
+    if (guardSummary.violations.length > 0) {
+      allViolations.push(
+        ...guardSummary.violations.map((v) => ({ text: v.text, severity: v.severity })),
+      );
+    }
+    if (guardSummary.hadCriticalViolations) hadCritical = true;
+    derived.summary = guardSummary.sanitizedText;
+
+    derived.biomarkers = derived.biomarkers.map((b) => {
+      const pe = runHallucinationGuard(b.plainEnglish ?? "");
+      const de = runHallucinationGuard(b.deepExplanation ?? "");
+      if (pe.violations.length)
+        allViolations.push(
+          ...pe.violations.map((v) => ({ text: v.text, severity: v.severity })),
+        );
+      if (de.violations.length)
+        allViolations.push(
+          ...de.violations.map((v) => ({ text: v.text, severity: v.severity })),
+        );
+      if (pe.hadCriticalViolations || de.hadCriticalViolations) hadCritical = true;
+      return {
+        ...b,
+        plainEnglish: pe.sanitizedText,
+        deepExplanation: de.sanitizedText,
+      };
+    });
+
+    // ---- Deterministic rules engine on the extracted biomarkers ----
+    const extracted: ExtractedBiomarker[] = derived.biomarkers.map((b) => ({
+      name: b.name,
+      value: b.value,
+      unit: b.unit ?? null,
+      labRefMin: b.referenceRange?.low ?? null,
+      labRefMax: b.referenceRange?.high ?? null,
+      labRefText: null,
+    }));
+
+    let engineSummary: ClinicalEngineSummary | null = null;
+    try {
+      const engine = runClinicalRulesEngine(extracted);
+      engineSummary = {
+        version: "1.0",
+        patternEvaluations: JSON.parse(JSON.stringify(engine.patternEvaluations)),
+        priorityFindings: JSON.parse(JSON.stringify(engine.priorityFindings)),
+        criticalAlerts: JSON.parse(JSON.stringify(engine.criticalAlerts)),
+        dataQualityWarnings: engine.dataQualityWarnings,
+        overallClinicalScore: engine.overallClinicalScore,
+        evaluatedBiomarkers: JSON.parse(JSON.stringify(engine.evaluatedBiomarkers)),
+        guardHadCritical: hadCritical,
+        guardViolations: allViolations.slice(0, 50),
+      };
+    } catch (e) {
+      console.error("[analyzeReport] clinical engine failed", e);
+    }
+
+    derived.clinicalEngine = engineSummary;
+    return derived;
   });

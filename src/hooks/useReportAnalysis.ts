@@ -50,7 +50,12 @@ export function useReportAnalysis(): UseReportAnalysisReturn {
   const runAnalysis = useCallback(
     async (input: AnalyzeInput) => {
       const lang = (i18n.language ?? "en").split("-")[0];
-      const withLang = { ...input, language: lang } as AnalyzeInput;
+      const ctx = uploadStore.getClinicalContext();
+      const withLang = {
+        ...input,
+        language: lang,
+        ...(ctx ? { clinicalContext: ctx } : {}),
+      } as AnalyzeInput;
       setLastInput(withLang);
       setState("loading");
       setError(null);

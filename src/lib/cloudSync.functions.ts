@@ -12,10 +12,11 @@ const analysisResultSchema = z.object({
     labName: z.string().nullable().optional(),
     uploadedAt: z.string(),
   }),
-  biomarkers: z.array(z.unknown()),
+  biomarkers: z.array(z.any()),
   summary: z.string(),
   doctorQuestions: z.array(z.string()),
   contentWarning: z.string().nullable(),
+  clinicalEngine: z.any().nullable().optional(),
 });
 
 const countsSchema = z.object({
@@ -76,6 +77,7 @@ export const saveReport = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
     const r = data.result as AnalysisResult;
     const counts = computeStatusCounts(r);
+    const engine = r.clinicalEngine ?? null;
 
     const { data: row, error } = await supabase
       .from("reports")
@@ -89,11 +91,66 @@ export const saveReport = createServerFn({ method: "POST" })
         summary: r.summary,
         doctor_questions: r.doctorQuestions as unknown as never,
         content_warning: r.contentWarning,
+        clinical_engine_version: engine?.version ?? null,
+        evaluated_biomarkers: (engine?.evaluatedBiomarkers ?? null) as unknown as never,
+        pattern_evaluations: (engine?.patternEvaluations ?? null) as unknown as never,
+        priority_findings: (engine?.priorityFindings ?? null) as unknown as never,
+        critical_alerts: (engine?.criticalAlerts ?? null) as unknown as never,
+        data_quality_warnings: (engine?.dataQualityWarnings ?? null) as unknown as never,
+        overall_clinical_score: engine?.overallClinicalScore ?? null,
+        guard_violations_count: engine?.guardViolations?.length ?? 0,
+        guard_had_critical: engine?.guardHadCritical ?? false,
       })
       .select("id, created_at")
       .single();
 
     if (error) throw new Error(error.message);
+
+    // Persist biomarker history (best-effort)
+    try {
+      const reportDate = r.metadata.reportDate ?? null;
+      const rows = (r.biomarkers as Array<{
+        name: string;
+        value: number;
+        unit?: string;
+        status?: string;
+        referenceRange?: { low: number; high: number };
+      }>).map((b) => ({
+        user_id: userId,
+        report_id: row.id,
+        biomarker_name: b.name.toLowerCase().replace(/[^a-z0-9]+/g, "_"),
+        raw_name: b.name,
+        value: typeof b.value === "number" ? b.value : null,
+        unit: b.unit ?? null,
+        status: b.status ?? null,
+        lab_ref_min: b.referenceRange?.low ?? null,
+        lab_ref_max: b.referenceRange?.high ?? null,
+        report_date: reportDate && /^\d{4}-\d{2}-\d{2}/.test(reportDate) ? reportDate.slice(0, 10) : null,
+      }));
+      if (rows.length > 0) {
+        await supabase.from("biomarker_history").insert(rows as unknown as never);
+      }
+    } catch (e) {
+      console.error("[saveReport] biomarker_history insert failed", e);
+    }
+
+    // Persist guard violations (best-effort)
+    try {
+      const violations = engine?.guardViolations ?? [];
+      if (violations.length > 0) {
+        await supabase.from("guard_violations_log").insert(
+          violations.map((v) => ({
+            report_id: row.id,
+            violation_text: v.text,
+            severity: v.severity,
+            engine_version: engine?.version ?? "1.0",
+          })) as unknown as never,
+        );
+      }
+    } catch (e) {
+      console.error("[saveReport] guard_violations_log insert failed", e);
+    }
+
     return { id: row.id, createdAt: row.created_at };
   });
 

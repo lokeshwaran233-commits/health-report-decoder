@@ -1,4 +1,4 @@
-import type { AnalysisResult, AnalyzeInput, FileMeta } from "@/types/report";
+import type { AnalysisResult, AnalyzeInput, ClinicalContext, FileMeta } from "@/types/report";
 
 interface UploadStoreState {
   input: AnalyzeInput | null;
@@ -7,6 +7,7 @@ interface UploadStoreState {
   historyView: boolean;
   receivedAt: number | null;
   lastResult: AnalysisResult | null;
+  clinicalContext: ClinicalContext | null;
 }
 
 const STORAGE_KEY = "reportrx_history";
@@ -19,6 +20,7 @@ let state: UploadStoreState = {
   historyView: false,
   receivedAt: null,
   lastResult: null,
+  clinicalContext: null,
 };
 
 
@@ -82,7 +84,15 @@ export const uploadStore = {
       historyView: false,
       receivedAt: null,
       lastResult: null,
+      clinicalContext: null,
     };
+  },
+
+  setClinicalContext(ctx: ClinicalContext | null): void {
+    state = { ...state, clinicalContext: ctx };
+  },
+  getClinicalContext(): ClinicalContext | null {
+    return state.clinicalContext;
   },
 
   setLastResult(result: AnalysisResult): void {

@@ -16,6 +16,9 @@ export interface UseFileUploadReturn {
   reset: () => void;
   isDragging: boolean;
   setIsDragging: (v: boolean) => void;
+  pendingNavigation: boolean;
+  proceedToResults: () => void;
+  cancelPending: () => void;
 }
 
 const INITIAL_STATE: UploadState = { status: "idle" };
@@ -25,35 +28,37 @@ export function useFileUpload(): UseFileUploadReturn {
   const navigate = useNavigate();
   const [uploadState, setUploadState] = useState<UploadState>(INITIAL_STATE);
   const [isDragging, setIsDragging] = useState(false);
+  const [pendingNavigation, setPendingNavigation] = useState(false);
 
   const reset = useCallback(() => {
     setUploadState(INITIAL_STATE);
     setIsDragging(false);
+    setPendingNavigation(false);
   }, []);
+
+  const proceedToResults = useCallback(() => {
+    setPendingNavigation(false);
+    void navigate({ to: "/results" });
+  }, [navigate]);
+
+  const cancelPending = useCallback(() => {
+    setPendingNavigation(false);
+    uploadStore.setClinicalContext(null);
+    void navigate({ to: "/results" });
+  }, [navigate]);
 
   const processFile = useCallback(
     async (file: File) => {
       const validation = validateFile(file);
       if (!validation.valid) {
-        setUploadState({
-          status: "error",
-          error: validation.message,
-          file,
-        });
+        setUploadState({ status: "error", error: validation.message, file });
         return;
       }
-
-      // Deep validation: filename sanity + magic-byte content sniff.
       const deep = await validateUploadedFile(file);
       if (!deep.valid) {
-        setUploadState({
-          status: "error",
-          error: deep.error,
-          file,
-        });
+        setUploadState({ status: "error", error: deep.error, file });
         return;
       }
-
 
       setUploadState({ status: "extracting", file });
       try {
@@ -72,7 +77,7 @@ export function useFileUpload(): UseFileUploadReturn {
           );
         }
         setUploadState({ status: "done", file });
-        await navigate({ to: "/results" });
+        setPendingNavigation(true);
       } catch (err) {
         const message =
           err instanceof Error
@@ -81,7 +86,7 @@ export function useFileUpload(): UseFileUploadReturn {
         setUploadState({ status: "error", error: message, file });
       }
     },
-    [navigate],
+    [],
   );
 
   const handleFileDrop = useCallback(
@@ -117,9 +122,9 @@ export function useFileUpload(): UseFileUploadReturn {
         { name: "Pasted report", size: trimmed.length, type: "text/plain" },
       );
       setUploadState({ status: "done", extractedText: trimmed });
-      void navigate({ to: "/results" });
+      setPendingNavigation(true);
     },
-    [navigate],
+    [],
   );
 
   const loadSampleReport = useCallback(() => {
@@ -137,6 +142,9 @@ export function useFileUpload(): UseFileUploadReturn {
     reset,
     isDragging,
     setIsDragging,
+    pendingNavigation,
+    proceedToResults,
+    cancelPending,
   };
 }
 

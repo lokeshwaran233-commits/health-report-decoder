@@ -77,6 +77,45 @@ export type Database = {
           },
         ]
       }
+      credit_packs: {
+        Row: {
+          code: string
+          created_at: string
+          credits: number
+          description: string | null
+          id: string
+          is_active: boolean
+          name: string
+          price_inr_paise: number
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          credits: number
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          price_inr_paise: number
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          credits?: number
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          price_inr_paise?: number
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       family_profiles: {
         Row: {
           age: number | null
@@ -150,6 +189,54 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      payment_orders: {
+        Row: {
+          amount_paise: number
+          created_at: string
+          currency: string
+          fulfilled_at: string | null
+          id: string
+          item_code: string
+          kind: string
+          raw_payload: Json | null
+          razorpay_order_id: string
+          razorpay_payment_id: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount_paise: number
+          created_at?: string
+          currency?: string
+          fulfilled_at?: string | null
+          id?: string
+          item_code: string
+          kind: string
+          raw_payload?: Json | null
+          razorpay_order_id: string
+          razorpay_payment_id?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount_paise?: number
+          created_at?: string
+          currency?: string
+          fulfilled_at?: string | null
+          id?: string
+          item_code?: string
+          kind?: string
+          raw_payload?: Json | null
+          razorpay_order_id?: string
+          razorpay_payment_id?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       reports: {
         Row: {
@@ -337,6 +424,98 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "reports"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      subscription_plans: {
+        Row: {
+          code: string
+          created_at: string
+          description: string | null
+          features: Json
+          id: string
+          interval: string
+          is_active: boolean
+          monthly_report_quota: number
+          name: string
+          price_inr_paise: number
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          description?: string | null
+          features?: Json
+          id?: string
+          interval?: string
+          is_active?: boolean
+          monthly_report_quota?: number
+          name: string
+          price_inr_paise?: number
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          description?: string | null
+          features?: Json
+          id?: string
+          interval?: string
+          is_active?: boolean
+          monthly_report_quota?: number
+          name?: string
+          price_inr_paise?: number
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      user_entitlements: {
+        Row: {
+          created_at: string
+          credit_balance: number
+          period_started_at: string
+          plan_code: string
+          plan_renews_at: string | null
+          plan_started_at: string | null
+          plan_status: string
+          reports_used_this_period: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          credit_balance?: number
+          period_started_at?: string
+          plan_code?: string
+          plan_renews_at?: string | null
+          plan_started_at?: string | null
+          plan_status?: string
+          reports_used_this_period?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          credit_balance?: number
+          period_started_at?: string
+          plan_code?: string
+          plan_renews_at?: string | null
+          plan_started_at?: string | null
+          plan_status?: string
+          reports_used_this_period?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_entitlements_plan_code_fkey"
+            columns: ["plan_code"]
+            isOneToOne: false
+            referencedRelation: "subscription_plans"
+            referencedColumns: ["code"]
           },
         ]
       }

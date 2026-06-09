@@ -134,11 +134,14 @@ export const saveReport = createServerFn({ method: "POST" })
       console.error("[saveReport] biomarker_history insert failed", e);
     }
 
-    // Persist guard violations (best-effort)
+    // Persist guard violations (best-effort).
+    // Uses the service-role admin client because guard_violations_log is an audit
+    // table: deny-by-default RLS blocks all client writes; only trusted server-side
+    // code may insert. See security finding guard_violations_log_no_insert_delete_policy.
     try {
       const violations = engine?.guardViolations ?? [];
       if (violations.length > 0) {
-        await supabase.from("guard_violations_log").insert(
+        await supabaseAdmin.from("guard_violations_log").insert(
           violations.map((v) => ({
             report_id: row.id,
             violation_text: v.text,

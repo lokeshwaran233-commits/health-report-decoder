@@ -12,10 +12,12 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as ZenoRouteImport } from './routes/zeno'
 import { Route as ScanResultsRouteImport } from './routes/scan-results'
 import { Route as ScanRouteImport } from './routes/scan'
+import { Route as ResultsV2RouteImport } from './routes/results-v2'
 import { Route as ResultsRouteImport } from './routes/results'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as PricingRouteImport } from './routes/pricing'
+import { Route as MyHealthStoryRouteImport } from './routes/my-health-story'
 import { Route as HistoryRouteImport } from './routes/history'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AboutRouteImport } from './routes/about'
@@ -39,6 +41,11 @@ const ScanRoute = ScanRouteImport.update({
   path: '/scan',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ResultsV2Route = ResultsV2RouteImport.update({
+  id: '/results-v2',
+  path: '/results-v2',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ResultsRoute = ResultsRouteImport.update({
   id: '/results',
   path: '/results',
@@ -57,6 +64,11 @@ const PrivacyRoute = PrivacyRouteImport.update({
 const PricingRoute = PricingRouteImport.update({
   id: '/pricing',
   path: '/pricing',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MyHealthStoryRoute = MyHealthStoryRouteImport.update({
+  id: '/my-health-story',
+  path: '/my-health-story',
   getParentRoute: () => rootRouteImport,
 } as any)
 const HistoryRoute = HistoryRouteImport.update({
@@ -101,10 +113,12 @@ export interface FileRoutesByFullPath {
   '/about': typeof AboutRoute
   '/auth': typeof AuthRouteWithChildren
   '/history': typeof HistoryRoute
+  '/my-health-story': typeof MyHealthStoryRoute
   '/pricing': typeof PricingRoute
   '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
   '/results': typeof ResultsRoute
+  '/results-v2': typeof ResultsV2Route
   '/scan': typeof ScanRoute
   '/scan-results': typeof ScanResultsRoute
   '/zeno': typeof ZenoRoute
@@ -117,10 +131,12 @@ export interface FileRoutesByTo {
   '/about': typeof AboutRoute
   '/auth': typeof AuthRouteWithChildren
   '/history': typeof HistoryRoute
+  '/my-health-story': typeof MyHealthStoryRoute
   '/pricing': typeof PricingRoute
   '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
   '/results': typeof ResultsRoute
+  '/results-v2': typeof ResultsV2Route
   '/scan': typeof ScanRoute
   '/scan-results': typeof ScanResultsRoute
   '/zeno': typeof ZenoRoute
@@ -134,10 +150,12 @@ export interface FileRoutesById {
   '/about': typeof AboutRoute
   '/auth': typeof AuthRouteWithChildren
   '/history': typeof HistoryRoute
+  '/my-health-story': typeof MyHealthStoryRoute
   '/pricing': typeof PricingRoute
   '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
   '/results': typeof ResultsRoute
+  '/results-v2': typeof ResultsV2Route
   '/scan': typeof ScanRoute
   '/scan-results': typeof ScanResultsRoute
   '/zeno': typeof ZenoRoute
@@ -152,10 +170,12 @@ export interface FileRouteTypes {
     | '/about'
     | '/auth'
     | '/history'
+    | '/my-health-story'
     | '/pricing'
     | '/privacy'
     | '/profile'
     | '/results'
+    | '/results-v2'
     | '/scan'
     | '/scan-results'
     | '/zeno'
@@ -168,10 +188,12 @@ export interface FileRouteTypes {
     | '/about'
     | '/auth'
     | '/history'
+    | '/my-health-story'
     | '/pricing'
     | '/privacy'
     | '/profile'
     | '/results'
+    | '/results-v2'
     | '/scan'
     | '/scan-results'
     | '/zeno'
@@ -184,10 +206,12 @@ export interface FileRouteTypes {
     | '/about'
     | '/auth'
     | '/history'
+    | '/my-health-story'
     | '/pricing'
     | '/privacy'
     | '/profile'
     | '/results'
+    | '/results-v2'
     | '/scan'
     | '/scan-results'
     | '/zeno'
@@ -201,10 +225,12 @@ export interface RootRouteChildren {
   AboutRoute: typeof AboutRoute
   AuthRoute: typeof AuthRouteWithChildren
   HistoryRoute: typeof HistoryRoute
+  MyHealthStoryRoute: typeof MyHealthStoryRoute
   PricingRoute: typeof PricingRoute
   PrivacyRoute: typeof PrivacyRoute
   ProfileRoute: typeof ProfileRoute
   ResultsRoute: typeof ResultsRoute
+  ResultsV2Route: typeof ResultsV2Route
   ScanRoute: typeof ScanRoute
   ScanResultsRoute: typeof ScanResultsRoute
   ZenoRoute: typeof ZenoRoute
@@ -235,6 +261,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ScanRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/results-v2': {
+      id: '/results-v2'
+      path: '/results-v2'
+      fullPath: '/results-v2'
+      preLoaderRoute: typeof ResultsV2RouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/results': {
       id: '/results'
       path: '/results'
@@ -261,6 +294,13 @@ declare module '@tanstack/react-router' {
       path: '/pricing'
       fullPath: '/pricing'
       preLoaderRoute: typeof PricingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/my-health-story': {
+      id: '/my-health-story'
+      path: '/my-health-story'
+      fullPath: '/my-health-story'
+      preLoaderRoute: typeof MyHealthStoryRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/history': {
@@ -330,10 +370,12 @@ const rootRouteChildren: RootRouteChildren = {
   AboutRoute: AboutRoute,
   AuthRoute: AuthRouteWithChildren,
   HistoryRoute: HistoryRoute,
+  MyHealthStoryRoute: MyHealthStoryRoute,
   PricingRoute: PricingRoute,
   PrivacyRoute: PrivacyRoute,
   ProfileRoute: ProfileRoute,
   ResultsRoute: ResultsRoute,
+  ResultsV2Route: ResultsV2Route,
   ScanRoute: ScanRoute,
   ScanResultsRoute: ScanResultsRoute,
   ZenoRoute: ZenoRoute,

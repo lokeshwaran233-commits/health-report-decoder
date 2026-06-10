@@ -8,6 +8,7 @@ import { ErrorBoundary } from "@/components/layout/ErrorBoundary";
 import { Toaster } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { useSessionTimeout } from "@/hooks/useSessionTimeout";
+import { ThemeProvider } from "@/components/theme/ThemeProvider";
 
 function NotFoundComponent() {
   return (

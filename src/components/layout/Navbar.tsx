@@ -201,6 +201,7 @@ export function Navbar() {
 
         <div className="hidden md:flex items-center gap-2">
           <LanguageSwitcher />
+          <ThemeToggle />
           {!loading && !user && (
             <>
               <button

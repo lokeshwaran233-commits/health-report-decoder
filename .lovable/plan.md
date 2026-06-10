@@ -1,81 +1,111 @@
-## Phase D6 + D7 Implementation Plan
+## Goal
 
-Single combined plan, sequenced so D6 ships first and D7 layers cleanly on top. Each "Credit" maps to a self-contained build step you can stop after.
+Two things in one pass:
+1. **Finish the 3 pending wiring edits** from the previous turn so dark/light mode actually works end-to-end.
+2. **Apply the uploaded "Reducing Hallucinations in Medical Imaging AI" roadmap** to the existing scan pipeline (CT, MRI, DEXA, US, Echo, ECG, EEG, PET, X-ray, Mammo) as a parallel safety layer — no rewrite of the legacy path, no broken builds.
 
----
-
-### Pre-flight audit (1 step, no code yet once we enter build mode)
-
-Verify before building:
-1. Zeno (D4–D5): open `/results` with a sample report, send a message, toggle Simple/Medical mode, test medication refusal, check console + `zeno_conversations` writes.
-2. Confirm `share_tokens` schema already supports `audio` (it does, per `cloudSync.functions.ts`) and `snapshot` jsonb exists.
-3. List concrete bugs found; fix only blockers before D6 credit 1.
+Existing `clinical2026/` parallel-namespace approach is reused so nothing in `/results`, `/scan-results`, or `/history` regresses.
 
 ---
 
-### D6 — Audio Summary + Multi-language TTS
+## Part A — Theme wiring (3 edits, ~5 min)
 
-**Credit 1 — Audio engine**
-- `src/lib/audioService.ts`: `AudioService` class (speak/pause/resume/stop, voice picker with Indian-language preference, progress estimator, Chrome 14s keep-alive ping, `getAvailableLanguages()` static, `buildScript(result, lang)` static).
-- `src/hooks/useAudioPlayer.ts`: stateful wrapper exposing `{ state, progress, language, changeLanguage, play, pause, stop }`. Persists language to `localStorage` key `rx_audio_lang`. Accept either an `AnalysisResult` OR a pre-built script string (needed for share view).
+1. `src/routes/__root.tsx` — wrap `RootComponent` body with `<ThemeProvider>` (around the `QueryClientProvider`).
+2. `src/components/layout/Navbar.tsx` — render `<ThemeToggle />` next to `LanguageSwitcher` (both desktop and mobile menu).
+3. `src/styles.css` — add `.dark` overrides for existing brand tokens (`--brand-surface`, `--brand-dark`, `--brand-muted`, `--brand-border`, card/teal hover) + `@keyframes fadeUp` used by v2 components.
 
-**Credit 2 — Inline player UI**
-- `src/components/results/WaveformVisualizer.tsx` — 24 animated bars, sine + noise, teal-on-dark, idle/playing/paused/done/error variants.
-- `src/components/results/AudioPlayer.tsx` — pill card with waveform, title, language selector (only available languages enabled; unavailable shown disabled with install-voice tooltip), play/pause/stop, progress bar + %. WCAG: `role="region"`, `aria-label`, `role="progressbar"` with valuenow, `aria-live="polite"` status. No-speech-API fallback card.
-- Mount at the top of `InsightsSection.tsx`.
-
-**Credit 3 — Audio share view**
-- Extend `src/lib/cloudSync.functions.ts` `createShareToken` to accept `type: "summary" | "audio"` and store an audio snapshot `{ patientName, reportDate, language, summaryText }` (script only — no raw biomarkers). Keep 1-hour expiry.
-- `src/components/results/AudioShareView.tsx` — minimal centered layout, big 88px play button, progress bar, live expiry countdown (red when expired), brand CTA. Reads snapshot via the existing public-read path in `share.functions.ts`.
-- Extend `src/routes/s.$token.tsx` to branch on `shareType === "audio"` and render `AudioShareView`.
-
-**Credit 4 — Share modal audio option**
-- Extend `src/components/results/ShareModal.tsx`: divider + "Share as audio" section with Mic icon, copy-link button, WhatsApp button. Reuses the existing token-mint flow with `type: "audio"`. Stores the script built via `AudioService.buildScript(result, currentUiLanguage)`.
-
-**Credit 5 — Polish + QA**
-- Wire `getAvailableLanguages()` into the selector. Verify Chrome 14s keep-alive. Mobile viewport check. Tamil/Hindi voice-missing tooltip with OS-settings hint. Accessibility audit pass.
-- Post-phase manual checklist run.
+No new dependencies. No DB changes.
 
 ---
 
-### D7 — Family Profiles
+## Part B — Medical Imaging Safety Pipeline (new parallel namespace)
 
-**Credit 1 — Schema + types (migration)**
-- Migration creates `public.family_profiles` (with GRANTs to authenticated + service_role, RLS, updated_at trigger).
-- Adds `profile_id uuid references family_profiles(id) on delete set null` to `public.reports` + index.
-- Adds `profile_id` to `public.scan_results` similarly (for parity).
-- **App-side fallback** instead of `auth.users` trigger: on first authenticated load, if user has zero profiles, create a primary "Self" profile via a `createServerFn` (`requireSupabaseAuth`).
-- `src/types/profile.ts`: `FamilyProfile`, `AVATAR_COLORS` const tuple (6 named colors), `ProfileContextType`.
+New folder `src/lib/imagingSafety/` — never imported by the legacy `/scan` route, only by a new `/scan-v2` opt-in route, so zero risk to existing flows. Maps the doc's 12 phases to code:
 
-**Credit 2 — Profile context + scoping**
-- `src/contexts/ProfileContext.tsx` with `ProfileProvider` + `useProfiles` hook (fetch, set active, create, update, delete; activeProfile persisted per-user in localStorage; auto-create Self on first load if empty).
-- Mount `<ProfileProvider>` inside `src/routes/__root.tsx` (after auth wiring, before `<Outlet />`).
-- Scope reads: update `useReportHistory` and `useScanHistory` to accept/filter by `activeProfile.id` (fall back to all when null = legacy data).
-- Scope writes: `analyze.functions.ts` + `scanAnalysis.functions.ts` / cloud-sync inserts include `profile_id` from active profile (passed from client at save time).
+```text
+src/lib/imagingSafety/
+  types.ts                 # ModalityInput, QualityReport, AnatomyCheck,
+                           # CalibratedFinding, Evidence, CriticReport,
+                           # SafetyDecision, FinalReport, DeferralReason
+  phase1_input.ts          # MIME/extension/header sniff per modality,
+                           # DICOM tag presence check (best-effort, browser),
+                           # screenshot vs original detection, reject list
+  phase2_quality.ts        # Heuristic image-quality scorers per modality
+                           # (resolution, contrast spread, motion proxy,
+                           # ECG lead-count + sample-rate parser)
+  phase3_anatomy.ts        # LLM-assisted anatomy verifier with strict
+                           # JSON schema (region, view, laterality)
+  phase4_disease.ts        # Per-modality prompt routing + temperature 0
+                           # + JSON-mode finding extraction
+  phase5_calibration.ts    # Map LLM self-confidence → calibrated bands
+                           # (HIGH/MOD/LOW/INSUFFICIENT) using quality
+                           # + anatomy + evidence count
+  phase6_evidence.ts       # Require ≥1 image-grounded evidence string
+                           # per finding; drop ungrounded findings
+  phase7_critic.ts         # Second-pass critic LLM that re-reads the
+                           # report + image and flags overreach
+  phase8_safetyRules.ts    # Hard rules: no dosages, no diagnosis verbs,
+                           # critical-finding escalation, pregnancy/contrast
+                           # gates, lead-reversal & STEMI artefact guard,
+                           # DEXA positioning guard, US gel/probe artefact
+  phase9_reporting.ts      # Build patient-safe + clinician-brief outputs
+                           # with explicit uncertainty language
+  phase10_humanReview.ts   # Decide auto-release vs defer-to-clinician;
+                           # emit DeferralReason with reasons
+  phase11_validation.ts    # Local golden-set runner (JSON fixtures in
+                           # tests/imagingSafety/) — no network
+  phase12_regulatory.ts    # Audit-log writer (model versions, prompts,
+                           # hashes, decisions) → guard_violations_log
+  pipeline.ts              # runImagingSafetyPipeline(input): orchestrates
+                           # phases 1→10, short-circuits on hard fails,
+                           # always returns FinalReport
+  fixtures/                # 8-10 JSON test fixtures across modalities
+```
 
-**Credit 3 — ProfileSwitcher in Navbar**
-- `src/components/profile/ProfileAvatar.tsx` — colored circle with initial, sm/md/lg, active ring.
-- `src/components/profile/ProfileSwitcher.tsx` — pill trigger + dropdown listing profiles with active checkmark + "Add family member" row. Replaces the existing initial avatar in `Navbar.tsx` `UserMenu`. Single-profile users see avatar that opens `CreateProfileModal` directly.
+Server side:
+- `src/lib/imagingSafety/imagingSafety.functions.ts` — `analyzeScanSafe` createServerFn (`requireSupabaseAuth`), calls Lovable AI Gateway (existing `LOVABLE_API_KEY`), writes audit row to existing `guard_violations_log` via `supabaseAdmin`.
+- No new DB tables. Reuses `guard_violations_log` (already deny-by-default with admin writes) for phase-12 audit.
 
-**Credit 4 — CreateProfileModal**
-- `src/components/profile/CreateProfileModal.tsx` — name (≤30), relationship pill grid, age stepper, gender pills, avatar color swatches, live preview, success animation. Reused for edit mode in D7 credit 5.
+UI side (opt-in, behind theme toggle row):
+- `src/routes/scan-v2.tsx` — uploads → calls `analyzeScanSafe` → renders new components.
+- `src/components/imagingSafety/` — `QualityGatePanel`, `AnatomyBadge`, `CalibratedFindingCard`, `CriticBanner`, `SafetyDecisionBanner`, `DeferralCard`, `AuditFooter`. Dark-mode aware from day 1.
 
-**Credit 5 — History scoping UI + /settings + RLS audit**
-- History page: header chip "Showing reports for [avatar] [name]" + switcher; auto-refetch on profile change.
-- New `src/routes/settings.tsx` under `_authenticated` (creating that layout if not already present). Sections:
-  - Account: email (read-only), "Change password" (triggers reset email), "Delete account" (typed confirm).
-  - Family profiles: list with edit (CreateProfileModal in update mode) + delete (primary is non-deletable; confirm dialog).
-- Migration to add a SELECT policy on `reports`/`scan_results` allowing access via owned profile_id (defense in depth alongside existing user_id policies).
-- Run `supabase--linter` after migrations.
+Legacy `/scan` keeps working unchanged.
 
 ---
 
-### Technical notes
+## Hallucination guardrails (applied uniformly)
 
-- **No `auth.users` trigger.** Self-profile creation lives in app code (server fn called by `ProfileProvider`) to avoid mutating Supabase-reserved schemas.
-- **Backwards compatibility.** Existing reports have `profile_id = NULL`; treat as belonging to the user's primary profile in queries (`.or(profile_id.eq.<id>,profile_id.is.null)` while activeProfile is primary; strict `.eq` for non-primary). A one-time backfill is *not* run automatically; users see legacy reports under Self.
-- **Share view + audio script.** The existing `snapshot` jsonb column already carries the share payload; we extend it with a discriminated shape: `{ kind: "summary", ... } | { kind: "audio", summaryText, language, ... }`. No schema change needed for D6.
-- **Server-fn boundary.** Profile CRUD goes through `createServerFn` + `requireSupabaseAuth` to keep RLS honest and avoid client-side admin clients.
-- **Tokens.** Continue using existing `createShareToken` server fn — we only widen the snapshot shape and the route dispatcher.
-- **Accessibility + i18n.** Audio player uses ARIA live regions; language labels come from `i18n/locales/*.json`.
-- **Out of scope.** No WhatsApp bridge changes, no cross-profile analytics, no audit logging.
+- LLM calls use `temperature: 0`, JSON-mode, max-tokens cap, retry-once-with-stricter-prompt.
+- Existing `src/lib/zeno/hallucinationGuard.ts` patterns extended into `phase8_safetyRules.ts` (drug doses, diagnosis verbs, prescriptions, lead-reversal phrases, BI-RADS overreach, EF point estimates from single view).
+- Every finding without an evidence string is dropped before reaching the UI.
+- If quality < threshold OR anatomy mismatch → pipeline returns `{ decision: 'defer', reasons: [...] }` and UI shows a clear "we can't safely read this" card, never a fabricated diagnosis.
+
+---
+
+## Verification
+
+- Build (auto).
+- Run `bun test tests/imagingSafety/*.test.ts` against the local fixtures (no network — uses a stubbed LLM client) to confirm:
+  - low-quality CT → `defer`
+  - lead-reversal ECG → `defer` with reason
+  - clean DEXA → `release` with calibrated finding
+- Manually load `/scan-v2`, upload a sample image, confirm pipeline UI renders in both light and dark mode.
+
+---
+
+## Out of scope
+
+- No replacement of legacy `/scan` route.
+- No new payment/credit logic (existing entitlements already gate scans).
+- No new DB tables, no new secrets.
+- No regulatory submission artifacts beyond an in-app audit log.
+
+---
+
+## Files touched (summary)
+
+- **Edit:** `src/routes/__root.tsx`, `src/components/layout/Navbar.tsx`, `src/styles.css`
+- **Create:** `src/lib/imagingSafety/*` (~15 files), `src/routes/scan-v2.tsx`, `src/components/imagingSafety/*` (~7 files), `tests/imagingSafety/*` (~3 files + fixtures)
+
+Approve and I'll execute everything in one build pass.

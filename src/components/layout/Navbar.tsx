@@ -6,6 +6,7 @@ import { useTranslation } from "react-i18next";
 import { Button } from "@/components/rx/Button";
 import { AuthModal } from "@/components/auth/AuthModal";
 import { LanguageSwitcher } from "@/components/layout/LanguageSwitcher";
+import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
 
@@ -200,6 +201,7 @@ export function Navbar() {
 
         <div className="hidden md:flex items-center gap-2">
           <LanguageSwitcher />
+          <ThemeToggle />
           {!loading && !user && (
             <>
               <button
@@ -262,7 +264,7 @@ export function Navbar() {
             className="md:hidden overflow-hidden border-t border-brand-border bg-white"
           >
             <div className="px-4 py-3 flex flex-col gap-1">
-              <div className="py-2"><LanguageSwitcher /></div>
+              <div className="py-2 flex items-center gap-2"><LanguageSwitcher /><ThemeToggle /></div>
               {navLinks.map((link) =>
                 link.kind === "route" ? (
                   <Link

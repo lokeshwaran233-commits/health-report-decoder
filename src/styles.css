@@ -77,6 +77,40 @@
   --ring: oklch(0.46 0.09 170);
 }
 
+/* Dark mode — applied when <html class="dark"> is set by ThemeProvider */
+.dark {
+  --background: oklch(0.18 0.01 240);
+  --foreground: oklch(0.96 0.005 90);
+  --card: oklch(0.22 0.012 240);
+  --card-foreground: oklch(0.96 0.005 90);
+  --popover: oklch(0.22 0.012 240);
+  --popover-foreground: oklch(0.96 0.005 90);
+  --primary: oklch(0.62 0.11 170);
+  --primary-foreground: oklch(0.12 0.01 240);
+  --secondary: oklch(0.28 0.01 240);
+  --secondary-foreground: oklch(0.96 0.005 90);
+  --muted: oklch(0.28 0.01 240);
+  --muted-foreground: oklch(0.72 0.01 240);
+  --accent: oklch(0.32 0.04 170);
+  --accent-foreground: oklch(0.96 0.005 90);
+  --destructive: oklch(0.6 0.18 30);
+  --destructive-foreground: oklch(0.98 0 0);
+  --border: oklch(0.3 0.01 240);
+  --input: oklch(0.3 0.01 240);
+  --ring: oklch(0.62 0.11 170);
+
+  /* Brand token overrides */
+  --color-brand-teal: #2dd4a8;
+  --color-brand-teal-light: #0e2a24;
+  --color-brand-teal-mid: #5be3bf;
+  --color-brand-dark: #f0f4f8;
+  --color-brand-muted: #9aa3af;
+  --color-brand-hint: #6b7280;
+  --color-brand-border: #1f2937;
+  --color-brand-surface: #0b1117;
+  --color-brand-card: #111827;
+}
+
 @layer base {
   * {
     border-color: var(--color-border);
@@ -377,5 +411,12 @@
   to {
     opacity: 1;
     transform: translateY(0);
-  }
+}
+
+/* Used by v2 components */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-fadeUp { animation: fadeUp 0.4s ease-out both; }
 }

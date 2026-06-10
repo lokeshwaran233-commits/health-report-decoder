@@ -8,6 +8,7 @@ import { ErrorBoundary } from "@/components/layout/ErrorBoundary";
 import { Toaster } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { useSessionTimeout } from "@/hooks/useSessionTimeout";
+import { ThemeProvider } from "@/components/theme/ThemeProvider";
 
 function NotFoundComponent() {
   return (
@@ -114,23 +115,25 @@ function RootComponent() {
 
 
   return (
-    <QueryClientProvider client={queryClient}>
-      {isBarePage ? (
-        // Auth page — full screen, no chrome
-        <Outlet />
-      ) : (
-        // Every other page — normal layout
-        <>
-          <Navbar />
-          <main>
-            <PageWrapper>
-              <Outlet />
-            </PageWrapper>
-          </main>
-          <Footer />
-        </>
-      )}
-      <Toaster position="top-center" richColors />
-    </QueryClientProvider>
+    <ThemeProvider>
+      <QueryClientProvider client={queryClient}>
+        {isBarePage ? (
+          // Auth page — full screen, no chrome
+          <Outlet />
+        ) : (
+          // Every other page — normal layout
+          <>
+            <Navbar />
+            <main>
+              <PageWrapper>
+                <Outlet />
+              </PageWrapper>
+            </main>
+            <Footer />
+          </>
+        )}
+        <Toaster position="top-center" richColors />
+      </QueryClientProvider>
+    </ThemeProvider>
   );
 }

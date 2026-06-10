@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as ZenoRouteImport } from './routes/zeno'
+import { Route as ScanV2RouteImport } from './routes/scan-v2'
 import { Route as ScanResultsRouteImport } from './routes/scan-results'
 import { Route as ScanRouteImport } from './routes/scan'
 import { Route as ResultsV2RouteImport } from './routes/results-v2'
@@ -29,6 +30,11 @@ import { Route as ApiPublicRazorpayWebhookRouteImport } from './routes/api/publi
 const ZenoRoute = ZenoRouteImport.update({
   id: '/zeno',
   path: '/zeno',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ScanV2Route = ScanV2RouteImport.update({
+  id: '/scan-v2',
+  path: '/scan-v2',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ScanResultsRoute = ScanResultsRouteImport.update({
@@ -121,6 +127,7 @@ export interface FileRoutesByFullPath {
   '/results-v2': typeof ResultsV2Route
   '/scan': typeof ScanRoute
   '/scan-results': typeof ScanResultsRoute
+  '/scan-v2': typeof ScanV2Route
   '/zeno': typeof ZenoRoute
   '/auth/reset-password': typeof AuthResetPasswordRoute
   '/s/$token': typeof STokenRoute
@@ -139,6 +146,7 @@ export interface FileRoutesByTo {
   '/results-v2': typeof ResultsV2Route
   '/scan': typeof ScanRoute
   '/scan-results': typeof ScanResultsRoute
+  '/scan-v2': typeof ScanV2Route
   '/zeno': typeof ZenoRoute
   '/auth/reset-password': typeof AuthResetPasswordRoute
   '/s/$token': typeof STokenRoute
@@ -158,6 +166,7 @@ export interface FileRoutesById {
   '/results-v2': typeof ResultsV2Route
   '/scan': typeof ScanRoute
   '/scan-results': typeof ScanResultsRoute
+  '/scan-v2': typeof ScanV2Route
   '/zeno': typeof ZenoRoute
   '/auth/reset-password': typeof AuthResetPasswordRoute
   '/s/$token': typeof STokenRoute
@@ -178,6 +187,7 @@ export interface FileRouteTypes {
     | '/results-v2'
     | '/scan'
     | '/scan-results'
+    | '/scan-v2'
     | '/zeno'
     | '/auth/reset-password'
     | '/s/$token'
@@ -196,6 +206,7 @@ export interface FileRouteTypes {
     | '/results-v2'
     | '/scan'
     | '/scan-results'
+    | '/scan-v2'
     | '/zeno'
     | '/auth/reset-password'
     | '/s/$token'
@@ -214,6 +225,7 @@ export interface FileRouteTypes {
     | '/results-v2'
     | '/scan'
     | '/scan-results'
+    | '/scan-v2'
     | '/zeno'
     | '/auth/reset-password'
     | '/s/$token'
@@ -233,6 +245,7 @@ export interface RootRouteChildren {
   ResultsV2Route: typeof ResultsV2Route
   ScanRoute: typeof ScanRoute
   ScanResultsRoute: typeof ScanResultsRoute
+  ScanV2Route: typeof ScanV2Route
   ZenoRoute: typeof ZenoRoute
   STokenRoute: typeof STokenRoute
   ApiPublicRazorpayWebhookRoute: typeof ApiPublicRazorpayWebhookRoute
@@ -245,6 +258,13 @@ declare module '@tanstack/react-router' {
       path: '/zeno'
       fullPath: '/zeno'
       preLoaderRoute: typeof ZenoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/scan-v2': {
+      id: '/scan-v2'
+      path: '/scan-v2'
+      fullPath: '/scan-v2'
+      preLoaderRoute: typeof ScanV2RouteImport
       parentRoute: typeof rootRouteImport
     }
     '/scan-results': {
@@ -378,6 +398,7 @@ const rootRouteChildren: RootRouteChildren = {
   ResultsV2Route: ResultsV2Route,
   ScanRoute: ScanRoute,
   ScanResultsRoute: ScanResultsRoute,
+  ScanV2Route: ScanV2Route,
   ZenoRoute: ZenoRoute,
   STokenRoute: STokenRoute,
   ApiPublicRazorpayWebhookRoute: ApiPublicRazorpayWebhookRoute,
@@ -385,3 +406,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}

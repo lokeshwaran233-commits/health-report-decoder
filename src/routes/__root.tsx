@@ -115,23 +115,25 @@ function RootComponent() {
 
 
   return (
-    <QueryClientProvider client={queryClient}>
-      {isBarePage ? (
-        // Auth page — full screen, no chrome
-        <Outlet />
-      ) : (
-        // Every other page — normal layout
-        <>
-          <Navbar />
-          <main>
-            <PageWrapper>
-              <Outlet />
-            </PageWrapper>
-          </main>
-          <Footer />
-        </>
-      )}
-      <Toaster position="top-center" richColors />
-    </QueryClientProvider>
+    <ThemeProvider>
+      <QueryClientProvider client={queryClient}>
+        {isBarePage ? (
+          // Auth page — full screen, no chrome
+          <Outlet />
+        ) : (
+          // Every other page — normal layout
+          <>
+            <Navbar />
+            <main>
+              <PageWrapper>
+                <Outlet />
+              </PageWrapper>
+            </main>
+            <Footer />
+          </>
+        )}
+        <Toaster position="top-center" richColors />
+      </QueryClientProvider>
+    </ThemeProvider>
   );
 }

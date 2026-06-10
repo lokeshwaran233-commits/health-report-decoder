@@ -175,8 +175,9 @@ export const analyzeScanSafe = createServerFn({ method: "POST" })
         "@/integrations/supabase/client.server"
       );
       await supabaseAdmin.from("guard_violations_log").insert({
-        text: `imaging-safety:${report.audit.pipelineVersion}:${report.decision}`,
+        violation_text: `imaging-safety:${report.audit.pipelineVersion}:${report.decision}`,
         severity: report.decision === "defer" ? "block" : "info",
+        engine_version: report.audit.pipelineVersion,
       });
     } catch (e) {
       console.warn("[analyzeScanSafe] audit write skipped", e);

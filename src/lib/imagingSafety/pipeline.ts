@@ -1,5 +1,12 @@
 // Orchestrates the 12-phase Medical Imaging Safety pipeline.
 // Pure logic — no network calls. Server function wraps this with an LLM call.
+//
+// CHANGELOG (2026-06-11):
+//   Fix 3 — STEMI upgraded from warn → block (was a critical miss).
+//   Fix 3b — Added hard blocks: VT/VF, complete heart block, severe bradycardia.
+//   Fix 3c — Added CT/MRI hard blocks: aortic dissection, tension pneumothorax, cord compression.
+//   Fix 4 — ADC dependency rule: brain MRI stroke/infarct findings require DWI evidence.
+//   Fix 4b — PE hard block: CT PE finding without contrast note → block with caveat.
 
 import type {
   CalibratedFinding,
@@ -16,6 +23,7 @@ import type {
   SafetyRuleHit,
 } from "./types";
 import { PIPELINE_VERSION } from "./types";
+import type { BodyRegion } from "@/types/scan";
 
 // ── Phase 1: Input validation ─────────────────────────────────────────────
 export function phase1Input(input: SafetyPipelineInput): PhaseInputReport {
@@ -35,7 +43,6 @@ export function phase1Input(input: SafetyPipelineInput): PhaseInputReport {
       rejectReason: `Unsupported file type: ${mime || "unknown"}`,
     };
   }
-  // Heuristic: small base64 payloads from PNG often = screenshots.
   const sizeBytes = input.imageBase64
     ? Math.floor((input.imageBase64.length * 3) / 4)
     : 0;
@@ -73,7 +80,6 @@ export function phase2Quality(
     reasons.push(...hints);
     score -= Math.min(40, hints.length * 10);
   }
-  // Modality-specific heuristics
   const mSpec: Record<string, string | number | boolean> = {};
   if (input.modality === "ecg") {
     mSpec.expectedLeads = 12;
@@ -87,9 +93,7 @@ export function phase2Quality(
   }
   if (input.modality === "ultrasound" || input.modality === "echo") {
     mSpec.cineExpected = true;
-    reasons.push(
-      "Single still frame — cine clips give more reliable interpretation.",
-    );
+    reasons.push("Single still frame — cine clips give more reliable interpretation.");
     score -= 5;
   }
   const clamped = Math.max(0, Math.min(100, score));
@@ -121,7 +125,7 @@ export function phase3Anatomy(input: SafetyPipelineInput): PhaseAnatomyReport {
   };
 }
 
-// ── Phase 5: Confidence calibration (uses quality + anatomy) ──────────────
+// ── Phase 5: Confidence calibration ───────────────────────────────────────
 function calibrateConfidence(
   raw: string | undefined,
   quality: PhaseQualityReport,
@@ -144,7 +148,7 @@ function calibrateConfidence(
   return band;
 }
 
-// ── Phase 4 + 6: Build calibrated findings with evidence requirement ──────
+// ── Phase 4 + 6: Build calibrated findings with evidence requirement ───────
 function buildFindings(
   input: SafetyPipelineInput,
   quality: PhaseQualityReport,
@@ -172,7 +176,7 @@ function buildFindings(
         caveats: [],
       };
     })
-    // Phase 6: drop ungrounded findings completely.
+    // Phase 6: drop ungrounded non-critical findings completely.
     .filter((f) => f.evidence.length > 0 || f.significance === "critical");
 }
 
@@ -217,11 +221,128 @@ const FORBIDDEN_PATTERNS: Array<{ re: RegExp; replace?: string; rule: string }> 
   { re: /\bprescribe[ds]?\b/gi, replace: "discuss medication with doctor", rule: "no_prescriptions" },
   { re: /\bI\s+diagnose\b/gi, replace: "this may suggest", rule: "no_diagnosis_verbs" },
 ];
+
+const ECG_BLOCK_PATTERNS: Array<{ re: RegExp; rule: string; message: string }> = [
+  {
+    re: /stemi|st[- ]?elevation\s+(myocardial\s+)?infarct/i,
+    rule: "ecg_stemi_block",
+    message:
+      "STEMI pattern detected — this is a potential cardiac emergency. AI output blocked: a 12-lead ECG and immediate cardiology review is required. Call emergency services if the patient has symptoms.",
+  },
+  {
+    re: /ventricular\s+(tachycardia|fibrillation)|vt|vf\b/i,
+    rule: "ecg_vt_vf_block",
+    message:
+      "VT/VF morphology detected — potentially life-threatening arrhythmia. AI output blocked: immediate cardiology review required.",
+  },
+  {
+    re: /complete\s+heart\s+block|third[- ]degree\s+(av\s+)?block|av\s+dissociation/i,
+    rule: "ecg_chb_block",
+    message:
+      "Complete heart block / AV dissociation pattern — potentially life-threatening. AI output blocked: urgent cardiology evaluation required.",
+  },
+  {
+    re: /severe\s+bradycardia|rate\s+[<＜]\s*3[05]\s*(bpm)?/i,
+    rule: "ecg_bradycardia_block",
+    message:
+      "Severe bradycardia pattern (< 30–35 bpm) — potentially haemodynamically significant. AI output blocked: urgent clinical review required.",
+  },
+  {
+    re: /qtc\s*(>|greater\s+than|>|≥|>)\s*5[0-9]{2}|prolonged\s+qt/i,
+    rule: "ecg_qtc_block",
+    message:
+      "QTc ≥ 500 ms detected — high risk of Torsades de Pointes. AI output blocked: medication review and cardiology input required.",
+  },
+];
+
+const CT_MRI_BLOCK_PATTERNS: Array<{ re: RegExp; rule: string; message: string }> = [
+  {
+    re: /aortic\s+dissection|intimal\s+flap|double\s+lumen/i,
+    rule: "ct_aortic_dissection_block",
+    message:
+      "Aortic dissection pattern detected — surgical emergency. AI output blocked: immediate vascular surgery and CT angiography review required.",
+  },
+  {
+    re: /tension\s+pneumothorax|mediastinal\s+shift.*pneumothorax|pneumothorax.*mediastinal\s+shift/i,
+    rule: "ct_tension_ptx_block",
+    message:
+      "Tension pneumothorax pattern detected — life-threatening emergency. AI output blocked: immediate emergency intervention required.",
+  },
+];
+
+const MRI_CORD_BLOCK_PATTERNS: Array<{ re: RegExp; rule: string; message: string }> = [
+  {
+    re: /cord\s+compression|cauda\s+equina|myelopathy.*signal|cord\s+signal\s+change/i,
+    rule: "mri_cord_compression_block",
+    message:
+      "Spinal cord compression or myelopathy signal detected — potential neurological emergency. AI output blocked: urgent neurosurgical review required.",
+  },
+];
+
+function checkAdcDependency(
+  findings: CalibratedFinding[],
+  modality: SafetyModality,
+  bodyRegion: BodyRegion,
+): SafetyRuleHit[] {
+  if (modality !== "mri" || bodyRegion !== "head_brain") return [];
+  const hits: SafetyRuleHit[] = [];
+
+  const strokeFindings = findings.filter((f) =>
+    /stroke|infarct|ischaemi[ac]|ischemi[ac]|diffusion|dwi|adc/i.test(
+      f.label + " " + f.plain,
+    ),
+  );
+
+  for (const f of strokeFindings) {
+    const hasDwiEvidence = f.evidence.some((e) =>
+      /dwi|adc|diffusion|b[- ]?1000|restricted/i.test(e.locator + " " + e.description),
+    );
+    if (!hasDwiEvidence) {
+      hits.push({
+        rule: "mri_stroke_no_adc_evidence",
+        severity: "block",
+        message: `Finding "${f.label}" suggests stroke/infarction but contains no DWI/ADC evidence. This diagnosis REQUIRES diffusion-weighted imaging confirmation. AI output blocked until DWI sequences are provided or a radiologist confirms.`,
+      });
+    }
+  }
+  return hits;
+}
+
+function checkPeContrastDependency(
+  findings: CalibratedFinding[],
+  modality: SafetyModality,
+): SafetyRuleHit[] {
+  if (modality !== "ct") return [];
+  const hits: SafetyRuleHit[] = [];
+
+  const peFindings = findings.filter((f) =>
+    /pulmonary\s+embolism|filling\s+defect.*pulmonary|pe\b/i.test(f.label + " " + f.plain),
+  );
+
+  for (const f of peFindings) {
+    const hasContrastEvidence = f.evidence.some((e) =>
+      /contrast|ctpa|ct\s+pulmonary\s+angiogram|filling\s+defect/i.test(
+        e.locator + " " + e.description,
+      ),
+    );
+    if (!hasContrastEvidence) {
+      hits.push({
+        rule: "ct_pe_no_contrast_evidence",
+        severity: "block",
+        message: `PE claim in finding "${f.label}" lacks contrast-enhanced protocol evidence. CTPA is required to diagnose pulmonary embolism — non-contrast CT cannot exclude or confirm PE. AI output blocked.`,
+      });
+    }
+  }
+  return hits;
+}
+
 function runSafetyRules(
   modality: SafetyModality,
+  bodyRegion: BodyRegion,
   findings: CalibratedFinding[],
 ): { hits: SafetyRuleHit[]; updated: CalibratedFinding[] } {
   const hits: SafetyRuleHit[] = [];
+
   const updated = findings.map((f) => {
     let plain = f.plain;
     for (const p of FORBIDDEN_PATTERNS) {
@@ -232,17 +353,34 @@ function runSafetyRules(
     }
     return { ...f, plain };
   });
-  // Modality-specific guards
+
   if (modality === "ecg") {
-    const hasSTEMI = updated.some((f) => /stemi|st[- ]?elevation/i.test(f.label));
-    if (hasSTEMI) {
-      hits.push({
-        rule: "ecg_stemi_artefact_guard",
-        severity: "warn",
-        message: "STEMI claim flagged — verify lead placement and rule out lead-reversal artefact.",
-      });
+    const combinedText = updated.map((f) => f.label + " " + f.plain).join(" ");
+    for (const { re, rule, message } of ECG_BLOCK_PATTERNS) {
+      if (re.test(combinedText)) {
+        hits.push({ rule, severity: "block", message });
+      }
     }
   }
+
+  if (modality === "ct" || modality === "mri") {
+    const combinedText = updated.map((f) => f.label + " " + f.plain).join(" ");
+    for (const { re, rule, message } of CT_MRI_BLOCK_PATTERNS) {
+      if (re.test(combinedText)) {
+        hits.push({ rule, severity: "block", message });
+      }
+    }
+  }
+
+  if (modality === "mri") {
+    const combinedText = updated.map((f) => f.label + " " + f.plain).join(" ");
+    for (const { re, rule, message } of MRI_CORD_BLOCK_PATTERNS) {
+      if (re.test(combinedText)) {
+        hits.push({ rule, severity: "block", message });
+      }
+    }
+  }
+
   if (modality === "mammogram") {
     const overreach = updated.some((f) => /\bbi-rads\s*[45]\b/i.test(f.label));
     if (overreach) {
@@ -253,6 +391,7 @@ function runSafetyRules(
       });
     }
   }
+
   if (modality === "echo") {
     const efPoint = updated.some((f) => /\bEF\s*=?\s*\d{1,2}\s*%/.test(f.label + " " + f.plain));
     if (efPoint) {
@@ -263,6 +402,13 @@ function runSafetyRules(
       });
     }
   }
+
+  const adcHits = checkAdcDependency(updated, modality, bodyRegion);
+  hits.push(...adcHits);
+
+  const peHits = checkPeContrastDependency(updated, modality);
+  hits.push(...peHits);
+
   return { hits, updated };
 }
 
@@ -280,6 +426,7 @@ function buildPatientSummary(
   const top = findings.slice(0, 3).map((f) => `• ${f.label} (${f.confidence.toLowerCase()} confidence)`);
   return `Highlights:\n${top.join("\n")}\n\nThis is an AI-assisted summary, not a diagnosis.`;
 }
+
 function buildClinicianBrief(
   findings: CalibratedFinding[],
   quality: PhaseQualityReport,
@@ -301,7 +448,7 @@ function buildClinicianBrief(
   return lines.join("\n");
 }
 
-// ── Phase 10: Human review decision ───────────────────────────────────────
+// ── Phase 10: Decision ────────────────────────────────────────────────────
 function decide(
   input: PhaseInputReport,
   quality: PhaseQualityReport,
@@ -323,7 +470,13 @@ function decide(
     deferrals.push({ code: "no_grounded_findings", message: "No evidence-grounded findings to release." });
   }
   if (safetyHits.some((h) => h.severity === "block")) {
-    deferrals.push({ code: "safety_block", message: safetyHits.filter((h) => h.severity === "block").map((h) => h.message).join(" ") });
+    deferrals.push({
+      code: "safety_block",
+      message: safetyHits
+        .filter((h) => h.severity === "block")
+        .map((h) => h.message)
+        .join(" "),
+    });
   }
   if (deferrals.length) return { decision: "defer", deferrals };
   const anyCritical = findings.some((f) => f.significance === "critical");
@@ -334,7 +487,7 @@ function decide(
   return { decision: "release", deferrals: [] };
 }
 
-// ── Phase 11: lightweight in-process validation hook ──────────────────────
+// ── Phase 11: Self-check ──────────────────────────────────────────────────
 export function runPipelineSelfCheck(report: FinalSafetyReport): string[] {
   const issues: string[] = [];
   for (const f of report.findings) {
@@ -348,7 +501,7 @@ export function runPipelineSelfCheck(report: FinalSafetyReport): string[] {
   return issues;
 }
 
-// ── Phase 12: audit entry builder (caller persists it) ────────────────────
+// ── Phase 12: Audit ───────────────────────────────────────────────────────
 function hash(s: string): string {
   let h = 0;
   for (let i = 0; i < s.length; i++) {
@@ -370,7 +523,11 @@ export function runImagingSafetyPipeline(
   const anatomy = phase3Anatomy(input);
   const baseFindings = buildFindings(input, quality, anatomy);
   const { critic, updated: postCritic } = runCritic(baseFindings);
-  const { hits: safetyHits, updated: postSafety } = runSafetyRules(input.modality, postCritic);
+  const { hits: safetyHits, updated: postSafety } = runSafetyRules(
+    input.modality,
+    input.bodyRegion,
+    postCritic,
+  );
   const { decision, deferrals } = decide(inputReport, quality, anatomy, postSafety, safetyHits);
 
   const finalFindings = decision === "defer" ? [] : postSafety;

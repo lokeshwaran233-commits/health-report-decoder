@@ -421,5 +421,36 @@ export const analyzeReport = createServerFn({ method: "POST" })
     }
 
     derived.clinicalEngine = engineSummary;
+
+    // Increment anonymous usage + log activity (best-effort, non-blocking)
+    try {
+      if (ipHash) {
+        await supabaseAdmin.rpc("exec" as never).catch(() => {});
+        const { data: existing } = await supabaseAdmin
+          .from("anonymous_report_usage")
+          .select("id, reports_count")
+          .eq("ip_hash", ipHash)
+          .maybeSingle();
+        if (existing) {
+          await supabaseAdmin
+            .from("anonymous_report_usage")
+            .update({ reports_count: (existing.reports_count ?? 0) + 1, last_used_at: new Date().toISOString() })
+            .eq("id", existing.id);
+        } else {
+          await supabaseAdmin
+            .from("anonymous_report_usage")
+            .insert({ ip_hash: ipHash, reports_count: 1 });
+        }
+      }
+      await supabaseAdmin.from("activity_events").insert({
+        user_id: authUserId,
+        feature: "report",
+        is_anonymous: !authUserId,
+        meta: { biomarkers: derived.biomarkers.length },
+      });
+    } catch (e) {
+      console.error("[analyzeReport] usage/activity log failed", e);
+    }
+
     return derived;
   });

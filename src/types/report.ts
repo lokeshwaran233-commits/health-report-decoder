@@ -140,7 +140,8 @@ export type AnalysisErrorCode =
   | "NO_DATA_FOUND"
   | "API_ERROR"
   | "RATE_LIMIT"
-  | "PAYMENT_REQUIRED";
+  | "PAYMENT_REQUIRED"
+  | "QUOTA_EXCEEDED";
 
 export interface AnalysisError {
   code: AnalysisErrorCode;

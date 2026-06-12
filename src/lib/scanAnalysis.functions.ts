@@ -117,7 +117,7 @@ function userInstructionFor(modality: ImageScanModality, bodyRegion: string): st
 export const analyzeScan = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => inputSchema.parse(input))
-  .handler(async ({ data }): Promise<ScanInterpretationResult> => {
+  .handler(async ({ data, context }): Promise<ScanInterpretationResult> => {
     const apiKey = process.env.LOVABLE_API_KEY;
     if (!apiKey) {
       console.error("[analyzeScan] LOVABLE_API_KEY is not configured");

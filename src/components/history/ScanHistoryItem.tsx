@@ -1,7 +1,6 @@
-import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "@tanstack/react-router";
-import { MoreVertical, Trash2, AlertTriangle } from "lucide-react";
+import { Trash2, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { scanStore } from "@/lib/scanStore";
 import type { ScanInterpretationResult } from "@/types/scan";

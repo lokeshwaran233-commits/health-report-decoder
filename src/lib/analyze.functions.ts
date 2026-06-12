@@ -1,12 +1,15 @@
 import { createServerFn } from "@tanstack/react-start";
+import { getRequestIP, getRequestHeader } from "@tanstack/react-start/server";
+import { createHash } from "crypto";
 import { z } from "zod";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { normalizeAnalysisResult } from "@/lib/normalizeAnalysis";
 import { withDerivedBiomarkers } from "@/lib/clinicalDerivations";
 import { runClinicalRulesEngine } from "@/lib/clinicalEngine/rulesEngine";
 import { runHallucinationGuard } from "@/lib/clinicalEngine/hallucinationGuard";
 import type { ExtractedBiomarker } from "@/lib/clinicalEngine/types";
 import type { AnalysisError, AnalysisResult, ClinicalEngineSummary, GuardViolation } from "@/types/report";
+
+const ANON_REPORT_LIMIT = 3;
 
 const langSchema = z.enum(["en", "ta", "hi", "te"]).optional();
 

@@ -32,19 +32,6 @@ export function ReportHistoryItem({
   busy,
 }: ReportHistoryItemProps) {
   const navigate = useNavigate();
-  const [confirmOpen, setConfirmOpen] = useState(false);
-  const popRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!confirmOpen) return;
-    const onDoc = (e: MouseEvent) => {
-      if (popRef.current && !popRef.current.contains(e.target as Node)) {
-        setConfirmOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", onDoc);
-    return () => document.removeEventListener("mousedown", onDoc);
-  }, [confirmOpen]);
 
   const counts = statusCounts(result);
   const name = result.metadata.patientName || "Lab Report";

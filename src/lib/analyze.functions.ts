@@ -221,13 +221,44 @@ function tryParseJson(raw: string): unknown {
 }
 
 export const analyzeReport = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => inputSchema.parse(input))
   .handler(async ({ data }): Promise<AnalysisResult> => {
     const apiKey = process.env.LOVABLE_API_KEY;
     if (!apiKey) {
       console.error("[analyzeReport] LOVABLE_API_KEY is not configured on the server");
       fail("API_ERROR", "AI service is not configured on the server. Please contact support.");
+    }
+
+    // Auth: anonymous users get 3 free reports per IP. Signed-in = unlimited (plan-gated client-side).
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    let authUserId: string | null = null;
+    try {
+      const authHeader = getRequestHeader("authorization");
+      if (authHeader?.startsWith("Bearer ")) {
+        const token = authHeader.slice(7);
+        const { data: userData } = await supabaseAdmin.auth.getUser(token);
+        authUserId = userData.user?.id ?? null;
+      }
+    } catch {
+      authUserId = null;
+    }
+
+    let ipHash: string | null = null;
+    if (!authUserId) {
+      const ip = getRequestIP({ xForwardedFor: true }) ?? "unknown";
+      ipHash = createHash("sha256").update(ip).digest("hex");
+      const { data: usage } = await supabaseAdmin
+        .from("anonymous_report_usage")
+        .select("reports_count")
+        .eq("ip_hash", ipHash)
+        .maybeSingle();
+      const used = usage?.reports_count ?? 0;
+      if (used >= ANON_REPORT_LIMIT) {
+        fail(
+          "QUOTA_EXCEEDED",
+          `You've used your ${ANON_REPORT_LIMIT} free analyses. Sign in to keep analyzing and save your history.`,
+        );
+      }
     }
 
     const userMessage =

@@ -46,7 +46,7 @@ function scrollToHowItWorks() {
 
 type NavLink =
   | { id: string; label: string; kind: "scroll" }
-  | { id: string; label: string; kind: "route"; to: "/history" | "/scan" | "/zeno" | "/about" | "/privacy" | "/profile" | "/pricing" };
+  | { id: string; label: string; kind: "route"; to: "/history" | "/scan" | "/zeno" | "/about" | "/privacy" | "/profile" | "/pricing" | "/activity" };
 
 function useNavLinks(): NavLink[] {
   const { t } = useTranslation();

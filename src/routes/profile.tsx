@@ -13,6 +13,7 @@ import {
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { HealthSnapshotCard } from "@/components/profile/HealthSnapshotCard";
 
 // Cast until generated DB types include the new `profiles` table.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

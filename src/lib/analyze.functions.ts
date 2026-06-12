@@ -425,7 +425,6 @@ export const analyzeReport = createServerFn({ method: "POST" })
     // Increment anonymous usage + log activity (best-effort, non-blocking)
     try {
       if (ipHash) {
-        await supabaseAdmin.rpc("exec" as never).catch(() => {});
         const { data: existing } = await supabaseAdmin
           .from("anonymous_report_usage")
           .select("id, reports_count")

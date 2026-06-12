@@ -230,6 +230,7 @@ function ProfilePage() {
           </div>
         ) : (
           <div className="space-y-6">
+            <HealthSnapshotCard userId={user.id} />
             {/* Avatar */}
             <section className="rounded-card bg-brand-card border border-brand-border p-5 flex items-center gap-4">
               <button

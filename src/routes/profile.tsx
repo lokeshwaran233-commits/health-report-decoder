@@ -13,6 +13,7 @@ import {
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { HealthSnapshotCard } from "@/components/profile/HealthSnapshotCard";
 
 // Cast until generated DB types include the new `profiles` table.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -230,6 +231,7 @@ function ProfilePage() {
           </div>
         ) : (
           <div className="space-y-6">
+            <HealthSnapshotCard userId={user.id} />
             {/* Avatar */}
             <section className="rounded-card bg-brand-card border border-brand-border p-5 flex items-center gap-4">
               <button

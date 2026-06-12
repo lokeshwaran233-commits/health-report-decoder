@@ -117,7 +117,7 @@ function userInstructionFor(modality: ImageScanModality, bodyRegion: string): st
 export const analyzeScan = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => inputSchema.parse(input))
-  .handler(async ({ data }): Promise<ScanInterpretationResult> => {
+  .handler(async ({ data, context }): Promise<ScanInterpretationResult> => {
     const apiKey = process.env.LOVABLE_API_KEY;
     if (!apiKey) {
       console.error("[analyzeScan] LOVABLE_API_KEY is not configured");
@@ -230,6 +230,17 @@ export const analyzeScan = createServerFn({ method: "POST" })
         result.imageQualityNote ||
           "The image quality is inadequate for reliable interpretation. Please upload a clearer scan.",
       );
+    }
+
+    try {
+      await context.supabase.from("activity_events").insert({
+        user_id: context.userId,
+        feature: "scan",
+        is_anonymous: false,
+        meta: { modality: result.modality },
+      });
+    } catch (e) {
+      console.error("[analyzeScan] activity log failed", e);
     }
 
     return result;

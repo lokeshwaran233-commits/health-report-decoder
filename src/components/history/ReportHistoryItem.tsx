@@ -1,7 +1,6 @@
-import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "@tanstack/react-router";
-import { MoreVertical, Trash2, AlertTriangle } from "lucide-react";
+import { Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { uploadStore } from "@/lib/uploadStore";
 import { relativeTime } from "@/lib/relativeTime";
@@ -33,19 +32,6 @@ export function ReportHistoryItem({
   busy,
 }: ReportHistoryItemProps) {
   const navigate = useNavigate();
-  const [confirmOpen, setConfirmOpen] = useState(false);
-  const popRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!confirmOpen) return;
-    const onDoc = (e: MouseEvent) => {
-      if (popRef.current && !popRef.current.contains(e.target as Node)) {
-        setConfirmOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", onDoc);
-    return () => document.removeEventListener("mousedown", onDoc);
-  }, [confirmOpen]);
 
   const counts = statusCounts(result);
   const name = result.metadata.patientName || "Lab Report";
@@ -136,59 +122,18 @@ export function ReportHistoryItem({
         </div>
 
         {!selecting && (
-          <div className="relative" ref={popRef}>
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                setConfirmOpen((v) => !v);
-              }}
-              aria-label="Report options"
-              className="p-2 -m-1 text-brand-hint hover:text-brand-dark transition-colors"
-            >
-              <MoreVertical className="h-4 w-4" aria-hidden="true" />
-            </button>
-            {confirmOpen && (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 0.15 }}
-                onClick={(e) => e.stopPropagation()}
-                className="absolute right-0 top-9 z-30 w-[240px] rounded-xl bg-[#1A2235] border border-[#1E2D42] p-4 shadow-[0_8px_32px_rgba(0,0,0,0.5)]"
-              >
-                <div className="flex items-start gap-2">
-                  <AlertTriangle className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" aria-hidden="true" />
-                  <div>
-                    <p className="text-sm font-semibold text-white">Remove this report?</p>
-                    <p className="text-xs text-[#8B9BAE] mt-1">
-                      This removes it from your history. {isLocalOnly ? "" : "It cannot be undone."}
-                    </p>
-                  </div>
-                </div>
-                <div className="mt-3 flex gap-2 justify-end">
-                  <button
-                    type="button"
-                    onClick={() => setConfirmOpen(false)}
-                    className="text-sm text-[#8B9BAE] hover:text-white px-2"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    disabled={busy}
-                    onClick={() => {
-                      setConfirmOpen(false);
-                      onDelete();
-                    }}
-                    className="inline-flex items-center gap-1.5 rounded-btn bg-[#EF4444] text-white px-3 py-1.5 text-sm font-medium hover:bg-[#DC2626] disabled:opacity-60"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
-                    Remove
-                  </button>
-                </div>
-              </motion.div>
-            )}
-          </div>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete();
+            }}
+            aria-label="Remove report"
+            className="p-2 -m-1 text-brand-hint hover:text-brand-coral transition-colors disabled:opacity-50"
+          >
+            <Trash2 className="h-4 w-4" aria-hidden="true" />
+          </button>
         )}
       </div>
     </motion.article>

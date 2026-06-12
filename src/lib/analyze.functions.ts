@@ -1,12 +1,15 @@
 import { createServerFn } from "@tanstack/react-start";
+import { getRequestIP, getRequestHeader } from "@tanstack/react-start/server";
+import { createHash } from "crypto";
 import { z } from "zod";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { normalizeAnalysisResult } from "@/lib/normalizeAnalysis";
 import { withDerivedBiomarkers } from "@/lib/clinicalDerivations";
 import { runClinicalRulesEngine } from "@/lib/clinicalEngine/rulesEngine";
 import { runHallucinationGuard } from "@/lib/clinicalEngine/hallucinationGuard";
 import type { ExtractedBiomarker } from "@/lib/clinicalEngine/types";
 import type { AnalysisError, AnalysisResult, ClinicalEngineSummary, GuardViolation } from "@/types/report";
+
+const ANON_REPORT_LIMIT = 3;
 
 const langSchema = z.enum(["en", "ta", "hi", "te"]).optional();
 
@@ -218,13 +221,44 @@ function tryParseJson(raw: string): unknown {
 }
 
 export const analyzeReport = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => inputSchema.parse(input))
   .handler(async ({ data }): Promise<AnalysisResult> => {
     const apiKey = process.env.LOVABLE_API_KEY;
     if (!apiKey) {
       console.error("[analyzeReport] LOVABLE_API_KEY is not configured on the server");
       fail("API_ERROR", "AI service is not configured on the server. Please contact support.");
+    }
+
+    // Auth: anonymous users get 3 free reports per IP. Signed-in = unlimited (plan-gated client-side).
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    let authUserId: string | null = null;
+    try {
+      const authHeader = getRequestHeader("authorization");
+      if (authHeader?.startsWith("Bearer ")) {
+        const token = authHeader.slice(7);
+        const { data: userData } = await supabaseAdmin.auth.getUser(token);
+        authUserId = userData.user?.id ?? null;
+      }
+    } catch {
+      authUserId = null;
+    }
+
+    let ipHash: string | null = null;
+    if (!authUserId) {
+      const ip = getRequestIP({ xForwardedFor: true }) ?? "unknown";
+      ipHash = createHash("sha256").update(ip).digest("hex");
+      const { data: usage } = await supabaseAdmin
+        .from("anonymous_report_usage")
+        .select("reports_count")
+        .eq("ip_hash", ipHash)
+        .maybeSingle();
+      const used = usage?.reports_count ?? 0;
+      if (used >= ANON_REPORT_LIMIT) {
+        fail(
+          "QUOTA_EXCEEDED",
+          `You've used your ${ANON_REPORT_LIMIT} free analyses. Sign in to keep analyzing and save your history.`,
+        );
+      }
     }
 
     const userMessage =
@@ -387,5 +421,35 @@ export const analyzeReport = createServerFn({ method: "POST" })
     }
 
     derived.clinicalEngine = engineSummary;
+
+    // Increment anonymous usage + log activity (best-effort, non-blocking)
+    try {
+      if (ipHash) {
+        const { data: existing } = await supabaseAdmin
+          .from("anonymous_report_usage")
+          .select("id, reports_count")
+          .eq("ip_hash", ipHash)
+          .maybeSingle();
+        if (existing) {
+          await supabaseAdmin
+            .from("anonymous_report_usage")
+            .update({ reports_count: (existing.reports_count ?? 0) + 1, last_used_at: new Date().toISOString() })
+            .eq("id", existing.id);
+        } else {
+          await supabaseAdmin
+            .from("anonymous_report_usage")
+            .insert({ ip_hash: ipHash, reports_count: 1 });
+        }
+      }
+      await supabaseAdmin.from("activity_events").insert({
+        user_id: authUserId,
+        feature: "report",
+        is_anonymous: !authUserId,
+        meta: { biomarkers: derived.biomarkers.length },
+      });
+    } catch (e) {
+      console.error("[analyzeReport] usage/activity log failed", e);
+    }
+
     return derived;
   });

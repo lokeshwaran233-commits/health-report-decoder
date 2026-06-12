@@ -14,6 +14,63 @@ export type Database = {
   }
   public: {
     Tables: {
+      activity_events: {
+        Row: {
+          created_at: string
+          feature: string
+          id: string
+          is_anonymous: boolean
+          meta: Json | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          feature: string
+          id?: string
+          is_anonymous?: boolean
+          meta?: Json | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          feature?: string
+          id?: string
+          is_anonymous?: boolean
+          meta?: Json | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      anonymous_report_usage: {
+        Row: {
+          created_at: string
+          first_seen_at: string
+          id: string
+          ip_hash: string
+          last_used_at: string
+          reports_count: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          first_seen_at?: string
+          id?: string
+          ip_hash: string
+          last_used_at?: string
+          reports_count?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          first_seen_at?: string
+          id?: string
+          ip_hash?: string
+          last_used_at?: string
+          reports_count?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       biomarker_history: {
         Row: {
           biomarker_name: string

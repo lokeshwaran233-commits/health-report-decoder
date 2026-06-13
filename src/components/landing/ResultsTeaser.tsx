@@ -9,7 +9,7 @@ const TEASERS: Biomarker[] = [
     unit: "mg/dL",
     referenceRange: { low: 40, high: 60 },
     status: "normal",
-    category: "lipid",
+    category: "cardio",
     plainEnglish: "Healthy range — your 'good' cholesterol looks great.",
     deepExplanation: "",
   },

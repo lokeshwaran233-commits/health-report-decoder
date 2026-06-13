@@ -21,7 +21,6 @@ import { Route as PricingRouteImport } from './routes/pricing'
 import { Route as MyHealthStoryRouteImport } from './routes/my-health-story'
 import { Route as HistoryRouteImport } from './routes/history'
 import { Route as AuthRouteImport } from './routes/auth'
-import { Route as ActivityRouteImport } from './routes/activity'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as STokenRouteImport } from './routes/s.$token'
@@ -88,11 +87,6 @@ const AuthRoute = AuthRouteImport.update({
   path: '/auth',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ActivityRoute = ActivityRouteImport.update({
-  id: '/activity',
-  path: '/activity',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const AboutRoute = AboutRouteImport.update({
   id: '/about',
   path: '/about',
@@ -123,7 +117,6 @@ const ApiPublicRazorpayWebhookRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
-  '/activity': typeof ActivityRoute
   '/auth': typeof AuthRouteWithChildren
   '/history': typeof HistoryRoute
   '/my-health-story': typeof MyHealthStoryRoute
@@ -143,7 +136,6 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
-  '/activity': typeof ActivityRoute
   '/auth': typeof AuthRouteWithChildren
   '/history': typeof HistoryRoute
   '/my-health-story': typeof MyHealthStoryRoute
@@ -164,7 +156,6 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
-  '/activity': typeof ActivityRoute
   '/auth': typeof AuthRouteWithChildren
   '/history': typeof HistoryRoute
   '/my-health-story': typeof MyHealthStoryRoute
@@ -186,7 +177,6 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/about'
-    | '/activity'
     | '/auth'
     | '/history'
     | '/my-health-story'
@@ -206,7 +196,6 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/about'
-    | '/activity'
     | '/auth'
     | '/history'
     | '/my-health-story'
@@ -226,7 +215,6 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/about'
-    | '/activity'
     | '/auth'
     | '/history'
     | '/my-health-story'
@@ -247,7 +235,6 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AboutRoute: typeof AboutRoute
-  ActivityRoute: typeof ActivityRoute
   AuthRoute: typeof AuthRouteWithChildren
   HistoryRoute: typeof HistoryRoute
   MyHealthStoryRoute: typeof MyHealthStoryRoute
@@ -350,13 +337,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/activity': {
-      id: '/activity'
-      path: '/activity'
-      fullPath: '/activity'
-      preLoaderRoute: typeof ActivityRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/about': {
       id: '/about'
       path: '/about'
@@ -408,7 +388,6 @@ const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AboutRoute: AboutRoute,
-  ActivityRoute: ActivityRoute,
   AuthRoute: AuthRouteWithChildren,
   HistoryRoute: HistoryRoute,
   MyHealthStoryRoute: MyHealthStoryRoute,
@@ -427,3 +406,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}

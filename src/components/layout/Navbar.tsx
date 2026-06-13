@@ -263,7 +263,10 @@ export function Navbar() {
             className="md:hidden overflow-hidden border-t border-brand-border bg-white"
           >
             <div className="px-4 py-3 flex flex-col gap-1">
-              <div className="py-2 flex items-center gap-2"><LanguageSwitcher /><ThemeToggle /></div>
+              <div className="py-2 flex items-center justify-between gap-2 border-b border-brand-border mb-1">
+                <span className="text-xs font-medium text-brand-muted">Language & theme</span>
+                <div className="flex items-center gap-2"><LanguageSwitcher /><ThemeToggle /></div>
+              </div>
               {navLinks.map((link) =>
                 link.kind === "route" ? (
                   <Link

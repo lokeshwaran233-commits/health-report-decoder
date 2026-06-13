@@ -232,16 +232,6 @@ export const analyzeScan = createServerFn({ method: "POST" })
       );
     }
 
-    try {
-      await context.supabase.from("activity_events").insert({
-        user_id: context.userId,
-        feature: "scan",
-        is_anonymous: false,
-        meta: { modality: result.modality },
-      });
-    } catch (e) {
-      console.error("[analyzeScan] activity log failed", e);
-    }
 
     return result;
   });

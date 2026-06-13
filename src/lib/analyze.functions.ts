@@ -422,7 +422,7 @@ export const analyzeReport = createServerFn({ method: "POST" })
 
     derived.clinicalEngine = engineSummary;
 
-    // Increment anonymous usage + log activity (best-effort, non-blocking)
+    // Increment anonymous usage (best-effort, non-blocking)
     try {
       if (ipHash) {
         const { data: existing } = await supabaseAdmin
@@ -441,14 +441,8 @@ export const analyzeReport = createServerFn({ method: "POST" })
             .insert({ ip_hash: ipHash, reports_count: 1 });
         }
       }
-      await supabaseAdmin.from("activity_events").insert({
-        user_id: authUserId,
-        feature: "report",
-        is_anonymous: !authUserId,
-        meta: { biomarkers: derived.biomarkers.length },
-      });
     } catch (e) {
-      console.error("[analyzeReport] usage/activity log failed", e);
+      console.error("[analyzeReport] usage log failed", e);
     }
 
     return derived;

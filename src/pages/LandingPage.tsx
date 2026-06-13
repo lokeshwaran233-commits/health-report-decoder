@@ -2,9 +2,10 @@ import { motion } from "framer-motion";
 import { Award, Clock, Shield } from "lucide-react";
 import { UploadCard } from "@/components/upload/UploadCard";
 import { HeroPreviewCard } from "@/components/landing/HeroPreviewCard";
-import { HowItWorks } from "@/components/landing/HowItWorks";
+import { HowItWorksFlow } from "@/components/landing/HowItWorksFlow";
 import { ResultsTeaser } from "@/components/landing/ResultsTeaser";
 import { ScrollReveal } from "@/components/landing/ScrollReveal";
+import { GuideButton } from "@/components/landing/GuideButton";
 
 function Hero() {
   return (
@@ -91,8 +92,9 @@ export function LandingPage() {
         <ResultsTeaser />
       </ScrollReveal>
       <ScrollReveal>
-        <HowItWorks />
+        <HowItWorksFlow />
       </ScrollReveal>
+      <GuideButton />
     </>
   );
 }

@@ -158,16 +158,6 @@ export const chatWithZeno = createServerFn({ method: "POST" })
       console.error("[zeno] persist failed", e);
     }
 
-    try {
-      await supabase.from("activity_events").insert({
-        user_id: userId,
-        feature: "zeno",
-        is_anonymous: false,
-        meta: { mode: data.mode, emergency: parsed.emergency },
-      });
-    } catch (e) {
-      console.error("[zeno] activity log failed", e);
-    }
 
     return { conversationId: convId, ...parsed };
   });

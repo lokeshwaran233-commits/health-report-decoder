@@ -3,14 +3,14 @@ import type { Biomarker } from "@/types/report";
 
 const TEASERS: Biomarker[] = [
   {
-    id: "teaser-hb",
-    name: "Haemoglobin",
-    value: 10.8,
-    unit: "g/dL",
-    referenceRange: { low: 12.0, high: 16.0 },
-    status: "flagged",
-    category: "blood",
-    plainEnglish: "Slightly below normal — may indicate mild anaemia.",
+    id: "teaser-hdl",
+    name: "HDL Cholesterol",
+    value: 58,
+    unit: "mg/dL",
+    referenceRange: { low: 40, high: 60 },
+    status: "normal",
+    category: "lipid",
+    plainEnglish: "Healthy range — your 'good' cholesterol looks great.",
     deepExplanation: "",
   },
   {

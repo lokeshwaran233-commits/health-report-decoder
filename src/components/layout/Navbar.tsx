@@ -46,7 +46,7 @@ function scrollToHowItWorks() {
 
 type NavLink =
   | { id: string; label: string; kind: "scroll" }
-  | { id: string; label: string; kind: "route"; to: "/history" | "/scan" | "/zeno" | "/about" | "/privacy" | "/profile" | "/pricing" | "/activity" };
+  | { id: string; label: string; kind: "route"; to: "/history" | "/scan" | "/zeno" | "/about" | "/privacy" | "/profile" | "/pricing" };
 
 function useNavLinks(): NavLink[] {
   const { t } = useTranslation();
@@ -54,8 +54,6 @@ function useNavLinks(): NavLink[] {
     { id: "how-it-works", label: t("nav.howItWorks"), kind: "scroll" },
     { id: "scan", label: "Scan Decoder", kind: "route", to: "/scan" },
     { id: "zeno", label: "Zeno AI", kind: "route", to: "/zeno" },
-    { id: "activity", label: "Live Activity", kind: "route", to: "/activity" },
-    { id: "pricing", label: "Pricing", kind: "route", to: "/pricing" },
     { id: "history", label: t("nav.history"), kind: "route", to: "/history" },
     { id: "about", label: t("nav.about"), kind: "route", to: "/about" },
     { id: "privacy", label: t("nav.privacy"), kind: "route", to: "/privacy" },

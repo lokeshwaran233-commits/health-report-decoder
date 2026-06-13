@@ -96,7 +96,10 @@ export const uploadStore = {
   },
 
   setLastResult(result: AnalysisResult): void {
+    const wasSample = state.sampleMode || state.historyView;
     state = { ...state, lastResult: result };
+    // Never persist sample reports or replayed history entries to localStorage.
+    if (wasSample) return;
     try {
       if (typeof window === "undefined") return;
       const existing = uploadStore.getHistory();

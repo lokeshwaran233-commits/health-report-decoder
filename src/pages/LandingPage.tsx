@@ -74,6 +74,35 @@ function TrustBar() {
   );
 }
 
+function B2BTeaser() {
+  return (
+    <section aria-label="Enterprise" className="px-4 pb-2">
+      <div className="mx-auto max-w-3xl">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 rounded-xl border border-brand-teal/20 bg-brand-teal-light/30 px-6 py-5">
+          <div className="h-10 w-10 shrink-0 rounded-btn bg-brand-teal-light flex items-center justify-center">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="text-brand-teal">
+              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+              <polyline points="9,22 9,12 15,12 15,22" />
+            </svg>
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-brand-dark">Building for clinics or hospitals?</p>
+            <p className="text-xs text-brand-muted mt-0.5">
+              We offer white-label deployments, custom volumes, and HIPAA-aligned options.
+            </p>
+          </div>
+          <a
+            href="/pricing#enterprise"
+            className="shrink-0 text-sm font-medium text-brand-teal hover:underline whitespace-nowrap"
+          >
+            Learn more →
+          </a>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export function LandingPage() {
   return (
     <>
@@ -88,6 +117,7 @@ export function LandingPage() {
       <ScrollReveal>
         <TrustBar />
       </ScrollReveal>
+      <B2BTeaser />
       <ScrollReveal>
         <ResultsTeaser />
       </ScrollReveal>
@@ -100,3 +130,4 @@ export function LandingPage() {
 }
 
 export default LandingPage;
+

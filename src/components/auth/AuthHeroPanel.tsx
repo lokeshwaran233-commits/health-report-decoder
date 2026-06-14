@@ -1,4 +1,4 @@
-export function AuthHeroPanel(): JSX.Element {
+export function AuthHeroPanel() {
   const features = [
     "Blood test analysis — every biomarker decoded",
     "Scan decoder — X-ray, CT, MRI, Ultrasound & more",

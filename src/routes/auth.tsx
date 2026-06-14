@@ -1,12 +1,18 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
+import { z } from "zod";
 import { AuthForm } from "@/components/auth/AuthForm";
 import { AuthHeroPanel } from "@/components/auth/AuthHeroPanel";
 import { useAuth } from "@/hooks/useAuth";
 import { SESSION_EXPIRED_FLAG } from "@/hooks/useSessionTimeout";
 
+const authSearchSchema = z.object({
+  mode: z.enum(["signin", "signup"]).optional().default("signin"),
+});
+
 export const Route = createFileRoute("/auth")({
+  validateSearch: (search: Record<string, unknown>) => authSearchSchema.parse(search),
   head: () => ({
     meta: [
       { title: "Sign in — ReportRx" },
@@ -20,12 +26,16 @@ export const Route = createFileRoute("/auth")({
 function AuthPage() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
+  const { mode } = Route.useSearch();
+  const expiredShownRef = useRef(false);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
+    if (expiredShownRef.current) return;
     try {
       if (window.localStorage.getItem(SESSION_EXPIRED_FLAG) === "1") {
         window.localStorage.removeItem(SESSION_EXPIRED_FLAG);
+        expiredShownRef.current = true;
         toast.info("You were signed out after 30 minutes of inactivity.");
       }
     } catch {
@@ -38,7 +48,6 @@ function AuthPage() {
       void navigate({ to: "/", replace: true });
     }
   }, [user, loading, navigate]);
-
 
   return (
     <div className="min-h-screen flex flex-col lg:flex-row bg-[#0A0E1A]">
@@ -55,23 +64,22 @@ function AuthPage() {
           <span className="text-sm font-semibold tracking-tight">ReportRx</span>
         </div>
         <p className="mt-3 text-sm text-[#8B9BAE]">
-          AI-powered analysis of lab reports & scans — in plain language.
+          AI-powered analysis of lab reports &amp; scans — in plain language.
         </p>
       </div>
 
       {/* Right form panel */}
-      <div className="flex-1 lg:w-[45%] flex items-center justify-center px-12 py-16 bg-[#0A0E1A]">
+      <div className="flex-1 lg:w-[45%] flex items-center justify-center px-6 sm:px-12 py-12 sm:py-16 bg-[#0A0E1A]">
         <div
-          className="w-full max-w-[420px] mx-auto rounded-[20px] p-10 border"
+          className="w-full max-w-[420px] mx-auto rounded-[20px] p-8 sm:p-10 border"
           style={{
             background: "#111827",
             borderColor: "#1E2D42",
             boxShadow: "0 24px 60px rgba(0,0,0,0.4)",
           }}
         >
-          <AuthForm dark onSuccess={() => navigate({ to: "/" })} />
+          <AuthForm initialTab={mode} onSuccess={() => void navigate({ to: "/" })} />
         </div>
-
       </div>
     </div>
   );

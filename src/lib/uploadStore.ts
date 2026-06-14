@@ -13,6 +13,8 @@ interface UploadStoreState {
 const STORAGE_KEY = "reportrx_history";
 const MAX_HISTORY = 20;
 
+const _storeListeners = new Set<() => void>();
+
 let state: UploadStoreState = {
   input: null,
   fileMeta: null,
@@ -22,6 +24,7 @@ let state: UploadStoreState = {
   lastResult: null,
   clinicalContext: null,
 };
+
 
 
 export const uploadStore = {

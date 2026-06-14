@@ -78,9 +78,19 @@ function HistoryPage() {
     retry: false,
   });
 
+  // Sync from cloud data
   useEffect(() => {
     setLocalHistory(uploadStore.getHistory());
   }, [cloudData]);
+
+  // Subscribe to immediate local store mutations (delete, clear, add)
+  useEffect(() => {
+    const unsubscribe = uploadStore.subscribe(() => {
+      setLocalHistory(uploadStore.getHistory());
+    });
+    return unsubscribe;
+  }, []);
+
 
   type RawReport = {
     id: string;

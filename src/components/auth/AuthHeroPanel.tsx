@@ -1,60 +1,67 @@
-import { Lock, Globe, Zap } from "lucide-react";
-import { ReportDemoCard } from "./ReportDemoCard";
-
 export function AuthHeroPanel() {
+  const features = [
+    "Blood test analysis — every biomarker decoded",
+    "Scan decoder — X-ray, CT, MRI, Ultrasound & more",
+    "Zeno AI — your 24/7 personal health companion",
+  ];
+
   return (
-    <div className="relative isolate min-h-screen overflow-hidden text-white rrx-auth-hero">
-      {/* drifting blobs */}
-      <div aria-hidden="true" className="pointer-events-none absolute inset-0">
-        <div className="absolute -top-20 -left-10 h-[400px] w-[400px] rounded-full rrx-blob rrx-blob-a" />
-        <div className="absolute top-1/3 right-0 h-[300px] w-[300px] rounded-full rrx-blob rrx-blob-b" />
-        <div className="absolute bottom-0 left-1/3 h-[250px] w-[250px] rounded-full rrx-blob rrx-blob-c" />
+    <div className="h-full min-h-screen flex flex-col justify-between px-14 py-16 bg-[#0A0E1A]">
+      {/* Logo */}
+      <div className="flex items-center gap-2.5">
+        <svg width="32" height="32" viewBox="0 0 28 28" aria-hidden="true" className="text-[#00D9A3]">
+          <circle cx="14" cy="14" r="12" stroke="currentColor" strokeWidth="1.5" fill="none" />
+          <path
+            d="M3 14 H9 L11 9 L14 19 L17 12 L19 14 H25"
+            stroke="currentColor"
+            strokeWidth="1.75"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            fill="none"
+          />
+        </svg>
+        <span className="text-white text-base font-semibold tracking-tight">ReportRx</span>
       </div>
 
-      {/* logo pill */}
-      <div className="relative z-10 p-8">
-        <div className="inline-flex items-center gap-2">
-          <span className="h-9 w-9 rounded-full bg-[#00D9A3] text-[#0A0E1A] font-bold text-sm flex items-center justify-center">
-            Rx
-          </span>
-          <span className="text-base font-semibold tracking-tight">ReportRx</span>
-        </div>
-      </div>
-
-      {/* center hero */}
-      <div className="relative z-10 flex flex-col items-start justify-center px-12 py-16 pt-16 pb-32 min-h-[calc(100vh-120px)]">
-        <h1 className="text-5xl md:text-6xl lg:text-6xl font-semibold leading-[1.05] tracking-tight max-w-[520px]">
-
-          Understand your
-          <br />
-          <span className="text-[#00D9A3]">lab results,</span>
-          <br />
-          instantly.
+      {/* Hero copy */}
+      <div className="flex-1 flex flex-col justify-center max-w-md">
+        <h1
+          className="text-[38px] leading-[1.1] font-semibold text-white tracking-tight"
+          style={{ fontFamily: "'Fraunces', serif" }}
+        >
+          Understand your health, <span className="text-[#00D9A3]">finally.</span>
         </h1>
-        <p className="mt-5 text-base md:text-lg text-[#8B9BAE] max-w-[460px] leading-relaxed">
-          AI-powered analysis of blood panels, scans, and metabolic reports — in plain language.
+        <p className="mt-4 text-[15px] text-[#8B9BAE] leading-relaxed">
+          Upload a lab report or imaging scan. Get plain-English explanations
+          and the exact questions to ask your doctor — in under 30 seconds.
         </p>
 
-        <div className="mt-10 w-full">
-          <ReportDemoCard />
-        </div>
+        {/* Feature list */}
+        <ul className="mt-8 space-y-3">
+          {features.map((f) => (
+            <li key={f} className="flex items-start gap-3 text-sm text-[#C5D0DE]">
+              <span className="mt-0.5 flex-shrink-0 h-5 w-5 rounded-full bg-[#00D9A3]/15 flex items-center justify-center">
+                <svg width="10" height="8" viewBox="0 0 10 8" fill="none" aria-hidden="true">
+                  <path
+                    d="M1 4L3.5 6.5L9 1"
+                    stroke="#00D9A3"
+                    strokeWidth="1.6"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </span>
+              {f}
+            </li>
+          ))}
+        </ul>
       </div>
 
-      {/* trust badges */}
-      <div className="absolute bottom-6 left-6 right-6 z-10 flex flex-wrap gap-2">
-        {[
-          { icon: Lock, label: "End-to-end encrypted" },
-          { icon: Globe, label: "English · Tamil · Hindi" },
-          { icon: Zap, label: "AI in < 30 seconds" },
-        ].map(({ icon: Icon, label }) => (
-          <span
-            key={label}
-            className="inline-flex items-center gap-1.5 rounded-full bg-[#111827] border border-[#1E2D42] px-3 py-1.5 text-[12px] text-[#8B9BAE]"
-          >
-            <Icon className="h-3 w-3" aria-hidden="true" />
-            {label}
-          </span>
-        ))}
+      {/* Social proof */}
+      <div className="border-t border-[#1E2D42] pt-6">
+        <p className="text-xs text-[#56657a]">
+          Built by a Double Gold Medallist, University of Madras · Powered by Gemini AI
+        </p>
       </div>
     </div>
   );

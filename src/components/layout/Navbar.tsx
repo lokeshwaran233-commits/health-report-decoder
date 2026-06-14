@@ -1,10 +1,9 @@
-import { useEffect, useRef, useState } from "react";
-import { Link } from "@tanstack/react-router";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { LogOut, Menu, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/rx/Button";
-import { AuthModal } from "@/components/auth/AuthModal";
 import { LanguageSwitcher } from "@/components/layout/LanguageSwitcher";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { useAuth } from "@/hooks/useAuth";
@@ -39,21 +38,22 @@ function Logo() {
   );
 }
 
-function scrollToHowItWorks() {
-  const el = document.getElementById("how-it-works");
-  if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
-}
-
 type NavLink =
-  | { id: string; label: string; kind: "scroll" }
-  | { id: string; label: string; kind: "route"; to: "/history" | "/scan" | "/zeno" | "/about" | "/privacy" | "/profile" | "/pricing" };
+  | { id: string; label: string; kind: "scroll"; anchor: string }
+  | {
+      id: string;
+      label: string;
+      kind: "route";
+      to: "/history" | "/scan" | "/zeno" | "/about" | "/privacy" | "/profile" | "/pricing";
+    };
 
 function useNavLinks(): NavLink[] {
   const { t } = useTranslation();
   return [
-    { id: "how-it-works", label: t("nav.howItWorks"), kind: "scroll" },
+    { id: "how-it-works", label: t("nav.howItWorks"), kind: "scroll", anchor: "how-it-works" },
     { id: "scan", label: "Scan Decoder", kind: "route", to: "/scan" },
     { id: "zeno", label: "Zeno AI", kind: "route", to: "/zeno" },
+    { id: "pricing", label: "Pricing", kind: "route", to: "/pricing" },
     { id: "history", label: t("nav.history"), kind: "route", to: "/history" },
     { id: "about", label: t("nav.about"), kind: "route", to: "/about" },
     { id: "privacy", label: t("nav.privacy"), kind: "route", to: "/privacy" },
@@ -91,7 +91,7 @@ function UserMenu() {
         {initial}
       </button>
       {open && (
-        <div className="absolute right-0 mt-2 w-56 rounded-card bg-white border border-brand-border shadow-lg py-2 z-50">
+        <div className="absolute right-0 mt-2 w-56 rounded-card bg-brand-card border border-brand-border shadow-lg py-2 z-50">
           <div className="px-3 py-2 text-xs text-brand-muted truncate">
             {user.email}
           </div>
@@ -124,11 +124,14 @@ export function Navbar() {
   const navLinks = useNavLinks();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
-  const [authOpen, setAuthOpen] = useState(false);
-  const [authTab, setAuthTab] = useState<"signin" | "signup">("signin");
   const reduceMotion = useReducedMotion();
   const headerRef = useRef<HTMLElement | null>(null);
   const { user, loading } = useAuth();
+  const navigate = useNavigate();
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+
+  // Pending anchor consumed after landing-page mount completes. No timers.
+  const pendingAnchorRef = useRef<string | null>(null);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 50);
@@ -148,37 +151,69 @@ export function Navbar() {
     return () => document.removeEventListener("mousedown", onDocClick);
   }, [mobileOpen]);
 
+  // After route lifecycle settles on "/", scroll to the pending anchor.
+  useEffect(() => {
+    if (pathname !== "/") return;
+    const target = pendingAnchorRef.current;
+    if (!target) return;
+    pendingAnchorRef.current = null;
+    let raf2 = 0;
+    const raf1 = window.requestAnimationFrame(() => {
+      raf2 = window.requestAnimationFrame(() => {
+        document
+          .getElementById(target)
+          ?.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    });
+    return () => {
+      window.cancelAnimationFrame(raf1);
+      if (raf2) window.cancelAnimationFrame(raf2);
+    };
+  }, [pathname]);
+
+  const scrollToAnchor = useCallback((id: string) => {
+    if (pathname === "/") {
+      const el = document.getElementById(id);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "start" });
+        return;
+      }
+    }
+    pendingAnchorRef.current = id;
+    void navigate({ to: "/" });
+  }, [pathname, navigate]);
+
+  const goToHowItWorks = useCallback(() => scrollToAnchor("how-it-works"), [scrollToAnchor]);
+  const goToDecoder = useCallback(() => scrollToAnchor("upload-card"), [scrollToAnchor]);
+
   const renderDesktopLink = (link: NavLink) => {
     if (link.kind === "scroll") {
       return (
         <button
           key={link.id}
           type="button"
-          onClick={scrollToHowItWorks}
+          onClick={goToHowItWorks}
           className="text-sm text-brand-muted hover:text-brand-dark transition-colors"
         >
           {link.label}
         </button>
       );
     }
-    if (link.kind === "route") {
-      return (
-        <Link
-          key={link.id}
-          to={link.to}
-          className="text-sm text-brand-muted hover:text-brand-dark transition-colors"
-          activeProps={{ className: "text-sm text-brand-dark font-medium" }}
-        >
-          {link.label}
-        </Link>
-      );
-    }
-    return null;
+    return (
+      <Link
+        key={link.id}
+        to={link.to}
+        className="text-sm text-brand-muted hover:text-brand-dark transition-colors"
+        activeProps={{ className: "text-sm text-brand-dark font-medium" }}
+      >
+        {link.label}
+      </Link>
+    );
   };
 
   const handleMobileNav = (link: NavLink) => {
     setMobileOpen(false);
-    if (link.kind === "scroll") setTimeout(scrollToHowItWorks, 50);
+    if (link.kind === "scroll") goToHowItWorks();
   };
 
   return (
@@ -187,8 +222,8 @@ export function Navbar() {
       className={cn(
         "fixed top-0 inset-x-0 z-50 backdrop-blur-md transition-all duration-200",
         scrolled
-          ? "bg-white/85 border-b border-brand-border shadow-[0_1px_0_rgba(0,0,0,0.04)]"
-          : "bg-white/70 border-b border-transparent",
+          ? "bg-brand-card/85 border-b border-brand-border shadow-[0_1px_0_rgba(0,0,0,0.04)]"
+          : "bg-brand-card/70 border-b border-transparent",
       )}
     >
       <div className="mx-auto max-w-6xl h-14 px-4 md:px-6 flex items-center justify-between gap-3">
@@ -205,10 +240,7 @@ export function Navbar() {
             <>
               <button
                 type="button"
-                onClick={() => {
-                  setAuthTab("signin");
-                  setAuthOpen(true);
-                }}
+                onClick={() => void navigate({ to: "/auth", search: { mode: "signin" } })}
                 className="text-sm font-medium text-brand-dark hover:text-brand-teal transition-colors px-2"
               >
                 {t("nav.signIn")}
@@ -216,26 +248,15 @@ export function Navbar() {
               <button
                 type="button"
                 aria-label="Create a free account"
-                onClick={() => {
-                  setAuthTab("signup");
-                  setAuthOpen(true);
-                }}
-                className="inline-flex items-center justify-center h-9 px-4 rounded-pill border-2 border-brand-teal text-sm font-semibold text-brand-teal bg-white hover:bg-brand-teal hover:text-white transition-colors"
+                onClick={() => void navigate({ to: "/auth", search: { mode: "signup" } })}
+                className="inline-flex items-center justify-center h-9 px-4 rounded-pill border-2 border-brand-teal text-sm font-semibold text-brand-teal bg-brand-card hover:bg-brand-teal hover:text-white transition-colors"
               >
                 {t("nav.signUp")}
               </button>
             </>
           )}
           {!loading && user && <UserMenu />}
-          <Button
-            variant="primary"
-            size="sm"
-            onClick={() =>
-              document
-                .getElementById("upload-card")
-                ?.scrollIntoView({ behavior: "smooth", block: "center" })
-            }
-          >
+          <Button variant="primary" size="sm" onClick={goToDecoder}>
             {t("nav.decodeBtn")}
           </Button>
         </div>
@@ -260,11 +281,11 @@ export function Navbar() {
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
             transition={{ duration: reduceMotion ? 0 : 0.2 }}
-            className="md:hidden overflow-hidden border-t border-brand-border bg-white"
+            className="md:hidden overflow-hidden border-t border-brand-border bg-brand-card"
           >
             <div className="px-4 py-3 flex flex-col gap-1">
               <div className="py-2 flex items-center justify-between gap-2 border-b border-brand-border mb-1">
-                <span className="text-xs font-medium text-brand-muted">Language & theme</span>
+                <span className="text-xs font-medium text-brand-muted">Language &amp; theme</span>
                 <div className="flex items-center gap-2"><LanguageSwitcher /><ThemeToggle /></div>
               </div>
               {navLinks.map((link) =>
@@ -297,8 +318,7 @@ export function Navbar() {
                     type="button"
                     onClick={() => {
                       setMobileOpen(false);
-                      setAuthTab("signup");
-                      setAuthOpen(true);
+                      void navigate({ to: "/auth", search: { mode: "signup" } });
                     }}
                     className="w-full h-11 rounded-btn bg-brand-teal text-white text-sm font-semibold hover:opacity-90 transition-opacity"
                   >
@@ -308,8 +328,7 @@ export function Navbar() {
                     type="button"
                     onClick={() => {
                       setMobileOpen(false);
-                      setAuthTab("signin");
-                      setAuthOpen(true);
+                      void navigate({ to: "/auth", search: { mode: "signin" } });
                     }}
                     className="w-full text-center text-[13px] text-brand-teal hover:underline py-1"
                   >
@@ -339,11 +358,7 @@ export function Navbar() {
                 fullWidth
                 onClick={() => {
                   setMobileOpen(false);
-                  setTimeout(() => {
-                    document
-                      .getElementById("upload-card")
-                      ?.scrollIntoView({ behavior: "smooth", block: "center" });
-                  }, 50);
+                  goToDecoder();
                 }}
               >
                 {t("nav.decodeBtn")}
@@ -352,8 +367,6 @@ export function Navbar() {
           </motion.div>
         )}
       </AnimatePresence>
-
-      <AuthModal open={authOpen} onClose={() => setAuthOpen(false)} initialTab={authTab} />
     </header>
   );
 }

@@ -167,6 +167,75 @@ function PricingPage() {
         Prices shown in USD. Secure payment processing will roll out shortly.
         Existing accounts will be notified before any plan is enabled.
       </p>
+
+      <EnterpriseSection />
     </div>
   );
 }
+
+function EnterpriseSection() {
+  const features = [
+    { icon: "🏥", label: "Custom report & scan volumes" },
+    { icon: "🔒", label: "HIPAA-aligned deployment options" },
+    { icon: "🎨", label: "White-label & custom branding" },
+    { icon: "📊", label: "Admin analytics dashboard for teams" },
+    { icon: "🤝", label: "Dedicated account manager" },
+    { icon: "🔗", label: "EHR / EMR integration support" },
+  ];
+
+  return (
+    <section
+      id="enterprise"
+      aria-labelledby="enterprise-heading"
+      className="mt-14 rounded-2xl border border-[#1E2D42] bg-[#0A0E1A] p-8 md:p-12"
+    >
+      <div className="flex flex-col md:flex-row gap-10 md:gap-16">
+        <div className="flex-1">
+          <span className="inline-flex items-center rounded-full bg-brand-teal/10 border border-brand-teal/30 px-3 py-1 text-xs font-semibold text-brand-teal uppercase tracking-wide">
+            Enterprise
+          </span>
+          <h2
+            id="enterprise-heading"
+            className="mt-4 text-2xl font-semibold text-white leading-snug"
+          >
+            Deploy ReportRx for your entire team or patient base.
+          </h2>
+          <p className="mt-3 text-sm text-[#8B9BAE] leading-relaxed max-w-lg">
+            Built for diagnostic labs, hospitals, telemedicine platforms, and
+            health-tech startups. Custom volume, white-label options, and a
+            dedicated account manager included.
+          </p>
+          <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {features.map((f) => (
+              <div key={f.label} className="flex items-center gap-2.5 text-sm text-[#C5D0DE]">
+                <span className="text-base leading-none" aria-hidden="true">{f.icon}</span>
+                {f.label}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="md:w-72 flex flex-col justify-center">
+          <div>
+            <p className="text-4xl font-bold text-white">Custom</p>
+            <p className="text-sm text-[#8B9BAE] mt-1">pricing based on your usage</p>
+          </div>
+          <a
+            href="mailto:hello@reportrx.com?subject=Enterprise%20inquiry%20—%20ReportRx"
+            className="mt-6 w-full inline-flex items-center justify-center h-[52px] rounded-xl text-sm font-semibold text-[#0A0E1A] transition-opacity hover:opacity-90"
+            style={{ background: "linear-gradient(135deg, #00D9A3 0%, #0F6E56 100%)" }}
+          >
+            Contact Sales →
+          </a>
+          <p className="mt-3 text-center text-xs text-[#56657a]">
+            Or email{" "}
+            <a href="mailto:hello@reportrx.com" className="text-brand-teal hover:underline">
+              hello@reportrx.com
+            </a>
+          </p>
+        </div>
+      </div>
+    </section>
+  );
+}
+

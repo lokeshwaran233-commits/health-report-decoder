@@ -20,11 +20,20 @@ interface Ctx {
 const STORAGE_KEY = "reportrx-theme";
 const ThemeContext = createContext<Ctx | null>(null);
 
+function readStoredTheme(): Theme {
+  if (typeof window === "undefined") return "system";
+  try {
+    const saved = window.localStorage.getItem(STORAGE_KEY);
+    if (saved === "light" || saved === "dark" || saved === "system") return saved;
+  } catch {
+    /* ignore */
+  }
+  return "system";
+}
+
 function resolveSystem(): Resolved {
   if (typeof window === "undefined") return "light";
-  return window.matchMedia("(prefers-color-scheme: dark)").matches
-    ? "dark"
-    : "light";
+  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 }
 
 function applyClass(resolved: Resolved) {
@@ -36,20 +45,12 @@ function applyClass(resolved: Resolved) {
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>("system");
-  const [resolved, setResolved] = useState<Resolved>("light");
-
-  // Hydrate from storage
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY) as Theme | null;
-      if (saved === "light" || saved === "dark" || saved === "system") {
-        setThemeState(saved);
-      }
-    } catch {
-      /* ignore */
-    }
-  }, []);
+  // Lazy init from storage to avoid an extra render + theme flash.
+  const [theme, setThemeState] = useState<Theme>(() => readStoredTheme());
+  const [resolved, setResolved] = useState<Resolved>(() => {
+    const t = readStoredTheme();
+    return t === "system" ? resolveSystem() : t;
+  });
 
   // Apply + respond to system changes
   useEffect(() => {
@@ -60,13 +61,27 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     if (theme !== "system") return;
     const mq = window.matchMedia("(prefers-color-scheme: dark)");
     const onChange = () => {
-      const next = mq.matches ? "dark" : "light";
+      const next: Resolved = mq.matches ? "dark" : "light";
       setResolved(next);
       applyClass(next);
     };
     mq.addEventListener("change", onChange);
     return () => mq.removeEventListener("change", onChange);
   }, [theme]);
+
+  // Cross-tab synchronization
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const onStorage = (e: StorageEvent) => {
+      if (e.key !== STORAGE_KEY) return;
+      const next = e.newValue;
+      if (next === "light" || next === "dark" || next === "system") {
+        setThemeState(next);
+      }
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, []);
 
   const setTheme = useCallback((t: Theme) => {
     setThemeState(t);
@@ -86,9 +101,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     [theme, resolved, setTheme, toggle],
   );
 
-  return (
-    <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>
-  );
+  return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 }
 
 export function useTheme(): Ctx {

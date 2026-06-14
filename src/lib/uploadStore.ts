@@ -101,7 +101,6 @@ export const uploadStore = {
   setLastResult(result: AnalysisResult): void {
     const wasSample = state.sampleMode || state.historyView;
     state = { ...state, lastResult: result };
-    // Never persist sample reports or replayed history entries to localStorage.
     if (wasSample) return;
     try {
       if (typeof window === "undefined") return;
@@ -109,6 +108,7 @@ export const uploadStore = {
       const filtered = existing.filter((r) => r.id !== result.id);
       const next = [result, ...filtered].slice(0, MAX_HISTORY);
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      uploadStore._notify();
     } catch {
       // ignore quota / privacy errors
     }
@@ -132,6 +132,7 @@ export const uploadStore = {
     try {
       if (typeof window === "undefined") return;
       window.localStorage.removeItem(STORAGE_KEY);
+      uploadStore._notify();
     } catch {
       // ignore
     }
@@ -141,10 +142,23 @@ export const uploadStore = {
       const next = uploadStore.getHistory().filter((r) => r.id !== id);
       if (typeof window === "undefined") return;
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      uploadStore._notify();
     } catch {
       // ignore
     }
   },
+
+  subscribe(listener: () => void): () => void {
+    _storeListeners.add(listener);
+    return () => {
+      _storeListeners.delete(listener);
+    };
+  },
+
+  _notify(): void {
+    _storeListeners.forEach((fn) => fn());
+  },
 };
+
 
 export default uploadStore;

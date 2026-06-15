@@ -268,6 +268,54 @@ export type Database = {
         }
         Relationships: []
       }
+      profiles: {
+        Row: {
+          age: number | null
+          ailments: string[]
+          allergies: string | null
+          avatar_url: string | null
+          blood_group: string | null
+          created_at: string
+          emergency_contact: string | null
+          full_name: string | null
+          id: string
+          medications: string | null
+          phone: string | null
+          sex: string | null
+          updated_at: string
+        }
+        Insert: {
+          age?: number | null
+          ailments?: string[]
+          allergies?: string | null
+          avatar_url?: string | null
+          blood_group?: string | null
+          created_at?: string
+          emergency_contact?: string | null
+          full_name?: string | null
+          id: string
+          medications?: string | null
+          phone?: string | null
+          sex?: string | null
+          updated_at?: string
+        }
+        Update: {
+          age?: number | null
+          ailments?: string[]
+          allergies?: string | null
+          avatar_url?: string | null
+          blood_group?: string | null
+          created_at?: string
+          emergency_contact?: string | null
+          full_name?: string | null
+          id?: string
+          medications?: string | null
+          phone?: string | null
+          sex?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       reports: {
         Row: {
           biomarkers: Json

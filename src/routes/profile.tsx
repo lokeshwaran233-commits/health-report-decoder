@@ -89,6 +89,17 @@ function ProfilePage() {
   const [isLoading, setIsLoading] = useState(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Resolve a signed URL for a private-bucket avatar path
+  const resolveAvatar = async (pathOrUrl: string): Promise<string> => {
+    if (!pathOrUrl) return "";
+    if (pathOrUrl.startsWith("http")) return pathOrUrl;
+    const { data, error } = await db.storage
+      .from("avatars")
+      .createSignedUrl(pathOrUrl, 60 * 60 * 24 * 7);
+    if (error || !data?.signedUrl) return "";
+    return data.signedUrl;
+  };
+
   useEffect(() => {
     if (authLoading) return;
     if (!user) {
@@ -115,7 +126,10 @@ function ProfilePage() {
             emergency_contact: data.emergency_contact ?? "",
             avatar_url: data.avatar_url ?? "",
           });
-          if (data.avatar_url) setAvatarPreview(data.avatar_url);
+          if (data.avatar_url) {
+            const url = await resolveAvatar(data.avatar_url);
+            setAvatarPreview(url);
+          }
         }
       } catch (e) {
         console.error(e);
@@ -153,8 +167,8 @@ function ProfilePage() {
   const onAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 3 * 1024 * 1024) {
-      toast.error("Image must be under 3MB");
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Image must be under 5MB");
       return;
     }
     if (!file.type.startsWith("image/")) {
@@ -162,20 +176,22 @@ function ProfilePage() {
       return;
     }
     try {
-      const ext = file.name.split(".").pop() ?? "jpg";
+      const ext = (file.name.split(".").pop() ?? "jpg").toLowerCase();
       const path = `${user.id}/avatar-${Date.now()}.${ext}`;
       const { error: upErr } = await db.storage
         .from("avatars")
         .upload(path, file, { upsert: true, contentType: file.type });
       if (upErr) throw upErr;
-      const { data } = db.storage.from("avatars").getPublicUrl(path);
-      setAvatarPreview(data.publicUrl);
-      setProfile((p) => ({ ...p, avatar_url: data.publicUrl }));
+      const signed = await resolveAvatar(path);
+      setAvatarPreview(signed);
+      setProfile((p) => ({ ...p, avatar_url: path }));
+      toast.success("Photo updated");
     } catch (err) {
       console.error(err);
       toast.error("Could not upload avatar");
     }
   };
+
 
   const save = async () => {
     setIsSaving(true);

@@ -1,10 +1,11 @@
 import { useRef, useState } from "react";
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { AlertCircle, Loader2, Upload } from "lucide-react";
+import { AlertCircle, Loader2, Upload, LogIn } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/rx/Button";
 import { ModalityPicker } from "@/components/scan/ModalityPicker";
+import { LoadingScreen } from "@/components/results/LoadingScreen";
 import { analyzeScan } from "@/lib/scanAnalysis.functions";
 import { saveScan } from "@/lib/scanCloudSync.functions";
 import { scanStore } from "@/lib/scanStore";
@@ -38,6 +39,30 @@ export const Route = createFileRoute("/scan")({
   }),
   component: ScanPage,
 });
+
+const ERROR_MESSAGES: Record<string, string> = {
+  RATE_LIMIT: "Too many scans right now — please wait a minute and try again.",
+  PAYMENT_REQUIRED: "AI credits exhausted. Please contact support.",
+  INADEQUATE_IMAGE:
+    "The image is too blurry or low quality to read reliably. Try a clearer photo.",
+  PARSE_ERROR: "We had trouble reading the AI response. Please try again.",
+  API_ERROR:
+    "The AI service is temporarily unavailable. Please try again in a moment.",
+  UNAUTHORIZED: "Please sign in to analyse a scan.",
+};
+
+function humanizeError(raw: string): string {
+  const upper = raw.toUpperCase();
+  for (const [code, msg] of Object.entries(ERROR_MESSAGES)) {
+    if (upper.includes(code)) return msg;
+  }
+  if (upper.includes("AUTHORIZATION") || upper.includes("UNAUTHORIZED")) {
+    return ERROR_MESSAGES.UNAUTHORIZED;
+  }
+  if (upper.includes("429")) return ERROR_MESSAGES.RATE_LIMIT;
+  if (upper.includes("402")) return ERROR_MESSAGES.PAYMENT_REQUIRED;
+  return "Something went wrong. Please try again.";
+}
 
 const REGIONS: { id: BodyRegion; label: string }[] = [
   { id: "chest_lungs", label: "Chest / Lungs" },

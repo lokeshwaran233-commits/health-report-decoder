@@ -226,6 +226,11 @@ function ScanPage() {
 
   const handleSubmit = async () => {
     if (!canSubmit || !modality) return;
+    if (!user) {
+      toast.error("Please sign in to analyse a scan.");
+      void navigate({ to: "/auth", search: { mode: "signin" } });
+      return;
+    }
     setError(null);
     setLoading(true);
     try {
@@ -258,26 +263,42 @@ function ScanPage() {
         return;
       }
 
-      scanStore.setLastResult(result);
-
-      if (user) {
-        try {
-          await save({ data: { result } });
-        } catch (e) {
-          console.warn("[scan] cloud save failed", e);
-          toast.warning("Saved locally. Could not sync to your account.");
-        }
+      let savedId: string | undefined;
+      try {
+        const saved = await save({ data: { result } });
+        savedId = saved.id;
+        result = { ...result, id: saved.id };
+      } catch (e) {
+        console.warn("[scan] cloud save failed", e);
+        toast.warning("Saved locally. Could not sync to your account.");
       }
 
-      void navigate({ to: "/scan-results" });
+      scanStore.setLastResult(result);
+      void navigate({
+        to: "/scan-results",
+        search: savedId ? { id: savedId } : {},
+      });
     } catch (e) {
-      const msg = e instanceof Error ? e.message : "Something went wrong.";
+      const raw = e instanceof Error ? e.message : "Something went wrong.";
+      const msg = humanizeError(raw);
       setError(msg);
       toast.error(msg);
     } finally {
       setLoading(false);
     }
   };
+
+  if (loading) {
+    return (
+      <div className="mx-auto max-w-3xl px-4 md:px-6 pt-24 pb-16">
+        <LoadingScreen />
+        <p className="mt-4 text-center text-xs text-brand-muted">
+          Scans typically take 15–30 seconds — please don't close this tab.
+        </p>
+      </div>
+    );
+  }
+
 
   return (
     <>

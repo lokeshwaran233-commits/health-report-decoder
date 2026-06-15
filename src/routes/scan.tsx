@@ -322,6 +322,28 @@ function ScanPage() {
         </p>
       </header>
 
+      {!user && (
+        <div
+          role="status"
+          className="flex flex-wrap items-center justify-between gap-3 rounded-card border border-brand-teal/40 bg-brand-teal-light/30 p-4 text-sm text-brand-dark"
+        >
+          <div className="flex items-start gap-2">
+            <LogIn className="h-4 w-4 mt-0.5 text-brand-teal" aria-hidden="true" />
+            <span>
+              <strong>Sign in required.</strong> Create a free account to analyse
+              scans — it takes 10 seconds and your history is saved securely.
+            </span>
+          </div>
+          <Link
+            to="/auth"
+            search={{ mode: "signin" }}
+            className="inline-flex h-9 items-center rounded-btn bg-brand-teal px-4 text-sm font-medium text-white hover:bg-brand-teal-mid"
+          >
+            Sign in
+          </Link>
+        </div>
+      )}
+
       <div className="rounded-card border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
         <strong>Important:</strong> This tool assists understanding. It does not
         replace a qualified radiologist or your treating doctor. Never make

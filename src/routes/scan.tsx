@@ -556,9 +556,9 @@ function ScanPage() {
               size="lg"
               disabled={!canSubmit}
               onClick={handleSubmit}
-              leftIcon={loading ? <Loader2 className="h-4 w-4 animate-spin" /> : undefined}
+              leftIcon={loading ? <Loader2 className="h-4 w-4 animate-spin" /> : !user ? <LogIn className="h-4 w-4" /> : undefined}
             >
-              {loading ? "Analysing…" : "Interpret scan"}
+              {loading ? "Analysing…" : !user ? "Sign in to interpret" : "Interpret scan"}
             </Button>
           </div>
         </section>

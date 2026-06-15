@@ -278,7 +278,7 @@ function ProfilePage() {
               />
               <div>
                 <p className="text-sm font-medium text-brand-dark">Profile photo</p>
-                <p className="text-xs text-brand-muted">Tap to upload (max 3 MB)</p>
+                <p className="text-xs text-brand-muted">Tap to upload (JPG/PNG, up to 5 MB)</p>
               </div>
             </section>
 

@@ -216,8 +216,10 @@ function ProfilePage() {
       toast.success("Profile saved");
       setTimeout(() => setSaved(false), 1800);
     } catch (e) {
-      console.error(e);
-      toast.error("Could not save profile");
+      console.error("[profile] save failed", e);
+      const msg = e instanceof Error ? e.message : "Could not save profile";
+      toast.error(msg);
+
     } finally {
       setIsSaving(false);
     }

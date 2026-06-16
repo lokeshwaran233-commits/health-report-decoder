@@ -289,6 +289,20 @@ export function AuthForm({ initialTab = "signin", onSuccess }: AuthFormProps) {
         </button>
       </form>
 
+      {/* Continue without signing in */}
+      <div className="mt-5 text-center">
+        <a
+          href="/"
+          className="inline-flex items-center gap-1.5 text-sm font-medium text-[#8B9BAE] hover:text-white transition-colors"
+        >
+          <span aria-hidden="true">←</span>
+          Continue without signing in
+        </a>
+        <p className="mt-1 text-[11px] text-[#56657a]">
+          Browse the home page and try a sample report — no account needed.
+        </p>
+      </div>
+
       {/* Footer legal */}
       <p className="mt-5 text-center text-[11px] text-[#56657a]">
         By continuing you agree to our{" "}

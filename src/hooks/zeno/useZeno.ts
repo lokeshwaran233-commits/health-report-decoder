@@ -1,5 +1,6 @@
 import { useCallback, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
+import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { chatWithZeno } from "@/lib/zeno/zeno.functions";
 import type { ZenoMessage, ZenoMode } from "@/lib/zeno/types";
@@ -13,6 +14,7 @@ export function useZeno(report: AnalysisResult | null) {
   const [emergency, setEmergency] = useState(false);
 
   const chatFn = useServerFn(chatWithZeno);
+  const navigate = useNavigate();
 
   const send = useCallback(
     async (text: string) => {
@@ -57,12 +59,21 @@ export function useZeno(report: AnalysisResult | null) {
         if (result.conversationId) setConversationId(result.conversationId);
         if (result.emergency) setEmergency(true);
       } catch (e) {
-        toast.error(e instanceof Error ? e.message : "Zeno couldn't respond.");
+        const raw = e instanceof Error ? e.message : "Zeno couldn't respond.";
+        const isAuth = /unauthor|authorization|401|no authorization header/i.test(raw);
+        if (isAuth) {
+          // Roll back the user message we optimistically added.
+          setMessages((prev) => prev.filter((m) => m.id !== userMsg.id));
+          toast.info("Please sign in to chat with Zeno.");
+          void navigate({ to: "/auth", search: { mode: "signup" } });
+        } else {
+          toast.error(raw);
+        }
       } finally {
         setLoading(false);
       }
     },
-    [messages, mode, report, loading, conversationId, chatFn],
+    [messages, mode, report, loading, conversationId, chatFn, navigate],
   );
 
   const reset = useCallback(() => {

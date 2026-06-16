@@ -9,12 +9,12 @@ export const Route = createFileRoute("/pricing")({
       {
         name: "description",
         content:
-          "ReportRx pricing in USD. Payments coming soon — all features are free while we wire up secure checkout.",
+          "ReportRx pricing in INR. Payments coming soon — every feature is free while we wire up secure checkout.",
       },
       { property: "og:title", content: "Pricing — ReportRx" },
       {
         property: "og:description",
-        content: "Plans from $9/month. Payments coming soon.",
+        content: "Plans from ₹799/month. Payments coming soon.",
       },
     ],
   }),
@@ -22,16 +22,15 @@ export const Route = createFileRoute("/pricing")({
 });
 
 // NOTE: Payments are intentionally suspended. The pricing tiers below are
-// presented in USD for future activation. When ready, flip PAYMENTS_ENABLED
-// to true and re-wire `handlePurchase` to Stripe or another gateway. The
-// existing billing.functions.ts / payment_orders schema are kept intact for
-// drop-in activation.
+// presented in INR for future Razorpay activation. When ready, flip
+// PAYMENTS_ENABLED to true and wire `handlePurchase` to the existing
+// billing.functions.ts createOrder server fn + Razorpay Checkout overlay.
 const PAYMENTS_ENABLED = false;
 
 interface Plan {
   code: string;
   name: string;
-  priceUsd: number | null; // null = Free
+  priceInr: number | null; // null = Free
   description: string;
   features: string[];
   highlight?: boolean;
@@ -41,7 +40,7 @@ const PLANS: Plan[] = [
   {
     code: "free",
     name: "Free",
-    priceUsd: null,
+    priceInr: null,
     description: "Try ReportRx with no commitment.",
     features: [
       "3 lab reports / month",
@@ -53,7 +52,7 @@ const PLANS: Plan[] = [
   {
     code: "starter",
     name: "Starter",
-    priceUsd: 9,
+    priceInr: 799,
     description: "For occasional check-ups.",
     features: [
       "15 lab reports / month",
@@ -65,7 +64,7 @@ const PLANS: Plan[] = [
   {
     code: "pro",
     name: "Pro",
-    priceUsd: 19,
+    priceInr: 1599,
     description: "Best for ongoing monitoring.",
     features: [
       "Unlimited lab reports",
@@ -79,7 +78,7 @@ const PLANS: Plan[] = [
   {
     code: "family",
     name: "Family",
-    priceUsd: 29,
+    priceInr: 2499,
     description: "Up to 5 family profiles.",
     features: [
       "Everything in Pro",
@@ -90,8 +89,8 @@ const PLANS: Plan[] = [
   },
 ];
 
-function formatUSD(amount: number) {
-  return `$${amount}`;
+function formatINR(amount: number) {
+  return `₹${amount.toLocaleString("en-IN")}`;
 }
 
 function PricingPage() {
@@ -116,7 +115,7 @@ function PricingPage() {
         </h2>
         <div className="grid gap-4 md:grid-cols-4">
           {PLANS.map((plan) => {
-            const isFree = plan.priceUsd === null;
+            const isFree = plan.priceInr === null;
             return (
               <Card
                 key={plan.code}
@@ -132,7 +131,7 @@ function PricingPage() {
                 <h3 className="text-lg font-semibold text-brand-dark">{plan.name}</h3>
                 <div className="mt-3">
                   <span className="text-3xl font-bold text-brand-dark">
-                    {isFree ? "Free" : formatUSD(plan.priceUsd!)}
+                    {isFree ? "Free" : formatINR(plan.priceInr!)}
                   </span>
                   {!isFree && (
                     <span className="text-sm text-brand-muted"> / month</span>
@@ -164,8 +163,9 @@ function PricingPage() {
       </section>
 
       <p className="text-xs text-brand-muted text-center max-w-md mx-auto">
-        Prices shown in USD. Secure payment processing will roll out shortly.
-        Existing accounts will be notified before any plan is enabled.
+        Prices shown in INR (₹) and billed monthly. Secure payments via UPI,
+        cards, netbanking &amp; wallets will roll out shortly. GST included
+        where applicable.
       </p>
 
       <EnterpriseSection />

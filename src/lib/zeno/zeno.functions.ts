@@ -159,5 +159,20 @@ export const chatWithZeno = createServerFn({ method: "POST" })
     }
 
 
+    // UltraGuard 9-layer audit pass (non-blocking).
+    try {
+      const { guardAndAudit } = await import("@/lib/ultraguard/guardAndAudit.server");
+      await guardAndAudit({
+        rawLlmOutput: raw,
+        surface: "zeno",
+        userId,
+        modality: "zeno_chat",
+        bodyRegion: "n/a",
+        contextSummary: `Zeno • mode=${data.mode}`,
+      });
+    } catch (err) {
+      console.error("[zeno] UltraGuard audit skipped:", err);
+    }
+
     return { conversationId: convId, ...parsed };
   });

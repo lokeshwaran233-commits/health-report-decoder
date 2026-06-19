@@ -550,6 +550,60 @@ export type Database = {
         }
         Relationships: []
       }
+      ultraguard_audit: {
+        Row: {
+          approved_count: number
+          blocked_by_layer: string | null
+          context_summary: string | null
+          created_at: string
+          downgrade_count: number
+          id: string
+          ip_hash: string | null
+          pipeline_version: string
+          processing_ms: number
+          rejected_count: number
+          report: Json
+          sentinel: string
+          surface: string
+          user_id: string | null
+          violation_count: number
+        }
+        Insert: {
+          approved_count?: number
+          blocked_by_layer?: string | null
+          context_summary?: string | null
+          created_at?: string
+          downgrade_count?: number
+          id?: string
+          ip_hash?: string | null
+          pipeline_version: string
+          processing_ms?: number
+          rejected_count?: number
+          report: Json
+          sentinel: string
+          surface: string
+          user_id?: string | null
+          violation_count?: number
+        }
+        Update: {
+          approved_count?: number
+          blocked_by_layer?: string | null
+          context_summary?: string | null
+          created_at?: string
+          downgrade_count?: number
+          id?: string
+          ip_hash?: string | null
+          pipeline_version?: string
+          processing_ms?: number
+          rejected_count?: number
+          report?: Json
+          sentinel?: string
+          surface?: string
+          user_id?: string | null
+          violation_count?: number
+        }
+        Relationships: []
+      }
       user_entitlements: {
         Row: {
           created_at: string

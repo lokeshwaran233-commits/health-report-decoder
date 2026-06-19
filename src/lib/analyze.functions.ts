@@ -445,5 +445,21 @@ export const analyzeReport = createServerFn({ method: "POST" })
       console.error("[analyzeReport] usage log failed", e);
     }
 
+    // UltraGuard 9-layer audit pass (non-blocking).
+    try {
+      const { guardAndAudit } = await import("@/lib/ultraguard/guardAndAudit.server");
+      await guardAndAudit({
+        rawLlmOutput: content,
+        surface: "lab",
+        userId: authUserId,
+        ipHash,
+        modality: "lab_report",
+        bodyRegion: "systemic",
+        contextSummary: `Lab report • ${data.type}`,
+      });
+    } catch (err) {
+      console.error("[analyzeReport] UltraGuard audit skipped:", err);
+    }
+
     return derived;
   });

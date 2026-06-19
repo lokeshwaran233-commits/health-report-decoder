@@ -1,68 +1,79 @@
-# Implementation Plan
+## UltraGuard build-out
 
-Sensible defaults are noted where you didn't specify — flag any you want changed before I build.
+You uploaded a 2104-line concatenated source file containing 7 of the 9 layers (types + Layers 1, 2, 4, 5, 6, 7, 8). Layers 3 (multi-agent validator) and 9 (audit logger) are described in the header comment but missing from the file. I'll split the file into its intended module structure, scaffold the two missing layers, expose one `runUltraGuard(...)` orchestrator, and wire it into all three AI surfaces.
 
-## 1. Remove Live Tracking entirely
-- Delete `src/routes/activity.tsx`, `src/lib/activity.functions.ts`, `src/components/profile/HealthSnapshotCard.tsx` references that depend on activity, and the "Activity" nav link in `Navbar.tsx`.
-- Strip activity-event logging calls from `analyze.functions.ts`, `scanAnalysis.functions.ts`, `zeno.functions.ts`.
-- Migration: drop `activity_events` table + its RLS/realtime policies. Keep `anonymous_report_usage` (still used for the 3-report quota).
-- HealthSnapshotCard stays, but recomputes totals from `reports` / `scan_results` / `zeno_conversations` directly (no activity feed).
+### 1. Module layout — `src/lib/ultraguard/`
 
-## 2. Mobile dark/light theme fix
-- `ThemeToggle` likely hidden inside desktop-only nav. Audit `Navbar.tsx` mobile menu and ensure the toggle renders in the mobile drawer with the same `useTheme()` hook. Verify `applyClass` runs on mobile (matchMedia listener works the same — the bug is almost certainly missing UI surface, not the hook).
+```text
+src/lib/ultraguard/
+  types.ts                       (file lines 1-184)        — shared types
+  tokenConstraints.ts            (lines 185-281)           — Layer 1
+  closedBookPrompts.ts           (lines 282-552)           — Layer 2
+  structuredOutputEnforcer.ts    (lines 553-840)           — Layer 4
+  evidenceLinkValidator.ts       (lines 841-1122)          — Layer 5
+  syndromeClusterGuard.ts        (lines 1123-1608)         — Layer 6
+  contradictionDetector.ts       (lines 1609-1873)         — Layer 7
+  confidencePropagator.ts        (lines 1874-2104)         — Layer 8
+  multiAgentValidator.ts         (new — Layer 3)           — runs validator LLM
+  auditLogger.ts                 (new — Layer 9)           — persists audit
+  orchestrator.ts                (new)                     — runUltraGuard()
+  index.ts                       (new)                     — public re-exports
+```
 
-## 3. Sample reports must never persist
-- In `UploadCard` / `analyze.functions.ts`: add an `isSample: true` flag on the "Try a sample" path.
-- Skip `uploadStore.saveToHistory()` and skip cloud insert (`cloudSync`) when `isSample === true`, for both anonymous AND signed-in users.
-- Same treatment for any sample scan path.
-- Result page renders normally but the report is ephemeral (cleared on navigation away).
+Each split file keeps its original code verbatim; only the surrounding section-banner is dropped where it duplicates the new file header.
 
-## 4. Landing "What you'll see" teaser — add a green/normal reading
-- In `ResultsTeaser.tsx`, replace one of the two flagged biomarkers (keep Vitamin D flagged, keep TSH watch) with a normal green one, e.g. **HDL Cholesterol 58 mg/dL** (range 40–60), status `normal`.
+### 2. New layers
 
-## 5. Auth modal alignment fix
-- `AuthModal.tsx` currently uses `fixed inset-0 flex items-center justify-center` — should center, but on mobile the inner card likely overflows viewport because `AuthForm` is tall. Fix:
-  - Wrap modal content in a scrollable container: `max-h-[90vh] overflow-y-auto`.
-  - Ensure backdrop uses `items-center` on all breakpoints (no `items-start` override).
-  - Add safe-area padding and ensure close button stays sticky/visible.
-  - On `/auth` route (full-page), keep current layout — only fix the modal that pops from the upload card / nav.
+**Layer 3 — `multiAgentValidator.ts`**
+- Calls Lovable AI Gateway (`google/gemini-3-flash-preview`) a second time using `buildValidatorSystemPrompt()` + `buildValidatorUserMessage()` from Layer 2.
+- Uses Layer 1's `buildConstrainedPayload` (temperature=0).
+- Returns `MultiAgentVerdict` (already typed in `types.ts`) — disagreements become `GuardViolation`s of severity `DOWNGRADE`.
+- Server-side only (`*.server.ts` import) — never reachable from the client.
 
-## 6. Pricing: suspend, convert ₹→$, raise prices, keep payment-ready
-- `pricing.tsx`: render a "Coming soon — payments paused" state with the new USD price cards visible but CTAs disabled (tooltip: "Available soon").
-- Convert all plan amounts to USD and bump ~15% (I'll propose: Starter $9, Pro $19, Family $29 — confirm or adjust).
-- Keep `subscription_plans` and `credit_packs` tables intact; add `currency: 'USD'` and `is_active: false` flags so wiring Stripe/Razorpay later is a single switch.
-- Keep `billing.functions.ts` and `razorpay-webhook.ts` files but gate them behind an `PAYMENTS_ENABLED=false` constant — no behavior change, ready to flip.
-- Remove pricing link from primary nav (optional — keep in footer only). **Confirm.**
+**Layer 9 — `auditLogger.ts`**
+- Writes an `UltraGuardReport` per analysis to a new `ultraguard_audit` table (one row per run: `id`, `user_id`, `surface` (`scan|lab|zeno`), `report` JSONB, `sentinel`, `violation_count`, `created_at`).
+- RLS: owner-read-only; service-role insert from server functions. Anonymous runs (sample reports) store `user_id = null` and an `ip_hash`.
+- Reuses existing `guard_violations_log` table where shape fits; new audit table holds the full structured report.
 
-## 7. Footer duplicate "© 2026 ReportRx"
-- Audit `__root.tsx` and `LandingPage.tsx` — Footer is likely mounted in both. Keep it only in `__root.tsx`.
+**Orchestrator — `orchestrator.ts`**
 
-## 8. "How it works" — Guide button + flow map
-- New floating button on `/` only (landing): a circular **G** chip fixed bottom-left (or left-center), subtle pulse, with a small tooltip popup on first visit ("New here? Tap G for a guided tour").
-- Click behavior: smooth-scroll to a new section `#how-it-works-flow` at the bottom of the landing page.
-- New component `HowItWorksFlow.tsx` replaces / augments current `HowItWorks.tsx`:
-  - Top: existing 4-step linear flow (Upload → Decode → Visualize → Doctor guide).
-  - Below: a **mind-map / branching diagram** showing the three pillars:
-    - **Lab Reports** (core analyzer)
-    - **Scans** (imaging safety)
-    - **Zeno** (AI companion that connects both)
-  - Each node expands on hover/tap to show what it does and how Zeno bridges lab + scan context.
-  - Rendered with SVG + framer-motion (no heavy lib).
-- Floating Guide button only renders on `/` (route check), never on other pages.
-- First-visit popup state stored in `localStorage` (`reportrx-guide-seen`).
+```text
+runUltraGuard({ rawLLM, modality, region, qualityHints, runValidator })
+  → enforceStructuredOutput        (Layer 4)
+  → normalizeToUltraGuardedFindings
+  → validateEvidenceLinks          (Layer 5)
+  → runSyndromeClusterGuard        (Layer 6)
+  → detectContradictions           (Layer 7)
+  → propagateConfidence            (Layer 8)
+  → multiAgentValidate (optional)  (Layer 3, async)
+  → auditLog                       (Layer 9)
+  → returns UltraGuardReport + sentinel (RELEASE | RELEASE_WITH_CAVEAT | INSUFFICIENT_DATA | BLOCKED)
+```
 
-## 9. QA pass after each step
-- Verify in preview at mobile (375px) and desktop (1280px) after each change.
-- Check console for errors after every edit.
-- Confirm: anonymous sample → no history; signed-in sample → no history; real anonymous report (≤3) → no history but result visible; real signed-in report → saved.
+If sentinel === `BLOCKED`, callers must surface a safety message instead of findings.
 
-## Technical notes
-- Files touched: `Navbar.tsx`, `Footer.tsx`, `LandingPage.tsx`, `ResultsTeaser.tsx`, `AuthModal.tsx`, `UploadCard.tsx`, `analyze.functions.ts`, `scanAnalysis.functions.ts`, `zeno.functions.ts`, `profile.tsx`, `HealthSnapshotCard.tsx`, `pricing.tsx`, `billing.functions.ts`, `__root.tsx`.
-- New files: `HowItWorksFlow.tsx`, `GuideButton.tsx`.
-- Deleted: `activity.tsx`, `activity.functions.ts`.
-- One migration: drop `activity_events`, add `currency` + `is_active` to plan tables.
+### 3. Wiring into the three surfaces
 
-## Confirm before I build
-1. USD pricing tiers OK at $9 / $19 / $29, or different?
-2. Keep "Pricing" link in nav (greyed) or move to footer only?
-3. Guide button: bottom-left floating bubble OK, or different position?
+- **Imaging safety (scans)** — `src/lib/scanAnalysis.functions.ts` + `src/lib/imagingSafety/pipeline.ts`: replace the existing ad-hoc guard with `buildConstrainedPayload` + `buildGeneratorSystemPrompt(modality, region)` for the request, then `runUltraGuard(...)` on the response. `ScanResultView` already understands `caveats`/`significance` — we'll pass through sanitized findings.
+- **Lab reports** — `src/lib/analyze.functions.ts` and `src/lib/clinicalEngine/*`: replace `clinicalEngine/hallucinationGuard.ts` with `runUltraGuard` (modality="lab_report"). The existing Zod synthesis schema is mapped onto `RawLLMObservations` via a small adapter.
+- **Zeno** — `src/lib/zeno/zeno.functions.ts`: each Zeno reply is wrapped: temperature=0 envelope, closed-book system prompt augmented with the user's report context, validator pass on the answer, downgrade or block + caveat injection. Emergency detector (existing) runs before UltraGuard.
+
+In all three, `BLOCKED` sentinel returns a safe fallback ("I don't have enough evidence to answer that reliably — please consult a clinician") instead of the raw model output.
+
+### 4. Database migration
+
+One migration creates `ultraguard_audit` with RLS + grants per the project's standard pattern (authenticated owner-read, service-role full). No changes to existing tables.
+
+### 5. Tests / verification
+
+- Build must pass (TS strict).
+- One manual scan run + one lab-report run + one Zeno question on the preview to confirm sentinel/caveats render and no regression on the existing happy path.
+- Security scan re-run after migration.
+
+### Out of scope
+
+- No UI redesign — the existing scan/lab/Zeno views already render `caveats`, `significance`, and `confidence` bands.
+- No changes to billing, auth, or payment flows.
+- No rewrite of the existing `imagingSafety/pipeline.ts` orchestration beyond swapping the guard layer; the modality detection / consent flow stays as-is.
+
+Approve and I'll execute end-to-end (split → scaffold → migration → wire → verify).

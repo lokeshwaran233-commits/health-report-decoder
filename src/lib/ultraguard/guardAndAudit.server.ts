@@ -14,7 +14,10 @@ export interface FireAndForgetInput {
   modality?: string;
   bodyRegion?: string;
   contextSummary?: string;
+  /** Raw IP — will be sha256-hashed before persistence. */
   ip?: string | null;
+  /** Pre-computed IP hash — use when you already hashed it upstream. */
+  ipHash?: string | null;
   runValidator?: boolean;
 }
 
@@ -35,7 +38,7 @@ export async function guardAndAudit(
     rawLlmOutput: input.rawLlmOutput,
     surface: input.surface,
     userId: input.userId ?? null,
-    ipHash: hashIp(input.ip),
+    ipHash: input.ipHash ?? hashIp(input.ip),
     modality: input.modality,
     bodyRegion: input.bodyRegion,
     contextSummary: input.contextSummary,

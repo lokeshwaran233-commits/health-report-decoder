@@ -232,6 +232,20 @@ export const analyzeScan = createServerFn({ method: "POST" })
       );
     }
 
+    // UltraGuard 9-layer audit pass (non-blocking; logs hallucination risk).
+    try {
+      const { guardAndAudit } = await import("@/lib/ultraguard/guardAndAudit.server");
+      await guardAndAudit({
+        rawLlmOutput: content,
+        surface: "scan",
+        userId: context.userId,
+        modality: String(modality),
+        bodyRegion: String(data.bodyRegion),
+        contextSummary: `Scan • ${modality} • ${data.bodyRegion}`,
+      });
+    } catch (err) {
+      console.error("[analyzeScan] UltraGuard audit skipped:", err);
+    }
 
     return result;
   });

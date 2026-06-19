@@ -27,7 +27,12 @@ const DEFAULT_MODEL = "google/gemini-3-flash-preview";
 
 export interface MultiAgentInput {
   findings: UltraGuardedFinding[];
-  contextSummary: string;
+  /** Raw generator JSON to hand to the validator. */
+  generatorOutput: string;
+  /** Modality label (e.g. "chest_xray", "lab_report", "zeno_chat"). */
+  modality: string;
+  /** Body region or "systemic" / "n/a". */
+  bodyRegion: string;
   model?: string;
   apiKey?: string;
 }
@@ -94,10 +99,17 @@ export async function runMultiAgentValidator(
       { role: "system", content: buildValidatorSystemPrompt() },
       {
         role: "user",
-        content: buildValidatorUserMessage(input.findings, input.contextSummary),
+        content: buildValidatorUserMessage(
+          input.generatorOutput,
+          // SafetyModality / BodyRegion are narrow string unions — the validator
+          // only embeds them as text, so we widen at the boundary.
+          input.modality as never,
+          input.bodyRegion as never,
+        ),
       },
     ],
   });
+
 
   let response: Response;
   try {

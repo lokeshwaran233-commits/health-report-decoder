@@ -40,6 +40,10 @@ export interface UltraGuardInput {
   rawLlmOutput: string;
   /** Short summary of the input context for the validator (e.g. "Chest CT, axial"). */
   contextSummary?: string;
+  /** Modality label for the validator prompt. */
+  modality?: string;
+  /** Body region label for the validator prompt. */
+  bodyRegion?: string;
   /** Whether to run the second-pass validator LLM. Defaults to false. */
   runValidator?: boolean;
   /** Validator LLM model (override default). */
@@ -186,7 +190,9 @@ export async function runUltraGuard(input: UltraGuardInput): Promise<UltraGuardR
     const tL3 = Date.now();
     const validatorRes = await runMultiAgentValidator({
       findings,
-      contextSummary: input.contextSummary ?? "",
+      generatorOutput: input.rawLlmOutput,
+      modality: input.modality ?? "unknown",
+      bodyRegion: input.bodyRegion ?? "systemic",
       model: input.validatorModel,
     });
     allViolations.push(...validatorRes.violations);

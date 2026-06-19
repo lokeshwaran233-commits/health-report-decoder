@@ -45,7 +45,15 @@ export function makeAuditEntry(
 
 export async function persistAuditTrail(input: AuditLogInput): Promise<void> {
   try {
-    await supabaseAdmin.from("ultraguard_audit").insert({
+    // Supabase generated types do not yet include `ultraguard_audit` until the
+    // migration runs and types are regenerated. Cast to a permissive client so
+    // this compiles in the interim and remains correct at runtime.
+    const client = supabaseAdmin as unknown as {
+      from: (table: string) => {
+        insert: (row: Record<string, unknown>) => Promise<{ error: unknown }>;
+      };
+    };
+    await client.from("ultraguard_audit").insert({
       surface: input.surface,
       user_id: input.userId ?? null,
       ip_hash: input.ipHash ?? null,

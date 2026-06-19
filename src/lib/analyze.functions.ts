@@ -452,7 +452,7 @@ export const analyzeReport = createServerFn({ method: "POST" })
         rawLlmOutput: content,
         surface: "lab",
         userId: authUserId,
-        ip: ipHash,
+        ipHash,
         modality: "lab_report",
         bodyRegion: "systemic",
         contextSummary: `Lab report • ${data.type}`,

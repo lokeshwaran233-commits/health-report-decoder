@@ -44,13 +44,13 @@ type NavLink =
       id: string;
       label: string;
       kind: "route";
-      to: "/history" | "/scan" | "/zeno" | "/about" | "/privacy" | "/profile" | "/pricing";
+      to: "/history" | "/scan" | "/zeno" | "/about" | "/privacy" | "/profile" | "/pricing" | "/tutorial";
     };
 
 function useNavLinks(): NavLink[] {
   const { t } = useTranslation();
   return [
-    { id: "how-it-works", label: t("nav.howItWorks"), kind: "scroll", anchor: "how-it-works" },
+    { id: "tutorial", label: "Tutorial", kind: "route", to: "/tutorial" },
     { id: "scan", label: "Scan Decoder", kind: "route", to: "/scan" },
     { id: "zeno", label: "Zeno AI", kind: "route", to: "/zeno" },
     { id: "pricing", label: "Pricing", kind: "route", to: "/pricing" },

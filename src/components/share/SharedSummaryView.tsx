@@ -37,7 +37,7 @@ export function SharedSummaryView({ snapshot }: SharedSummaryViewProps) {
           {snapshot.statusCounts.flagged} Flagged
         </span>
       </div>
-      <section className="mt-6 rounded-card bg-white border border-brand-border p-5">
+      <section className="mt-6 rounded-card bg-brand-card border border-brand-border p-5">
         {snapshot.summary.split(/\n\n+/).map((p, i) => (
           <p
             key={i}
@@ -48,7 +48,7 @@ export function SharedSummaryView({ snapshot }: SharedSummaryViewProps) {
         ))}
       </section>
       {snapshot.doctorQuestions.length > 0 && (
-        <section className="mt-6 rounded-card bg-white border border-brand-border p-5">
+        <section className="mt-6 rounded-card bg-brand-card border border-brand-border p-5">
           <h2 className="text-base font-semibold text-brand-dark mb-3">
             Questions for your doctor
           </h2>

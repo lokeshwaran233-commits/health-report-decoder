@@ -184,7 +184,7 @@ export function ShareModal({ open, onClose, result, counts }: ShareModalProps) {
         initial={{ opacity: 0, scale: 0.96 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: reduceMotion ? 0 : 0.18 }}
-        className="w-full max-w-md rounded-card bg-white p-6 shadow-2xl relative max-h-[90dvh] overflow-y-auto"
+        className="w-full max-w-md rounded-card bg-brand-card p-6 shadow-2xl relative max-h-[90dvh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
         <button

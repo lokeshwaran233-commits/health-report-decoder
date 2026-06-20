@@ -215,9 +215,12 @@ export function ShareModal({ open, onClose, result, counts }: ShareModalProps) {
             {busy === "summary" ? "Creating link…" : "Copy shareable link"}
           </Button>
           {summaryUrl && (
-            <p className="text-xs text-brand-hint break-all bg-brand-surface rounded-btn px-3 py-2">
-              {summaryUrl}
-            </p>
+            <>
+              <p className="text-xs text-brand-hint break-all bg-brand-surface rounded-btn px-3 py-2">
+                {summaryUrl}
+              </p>
+              <ShareQRCode url={summaryUrl} label="Scan with any phone camera to view" />
+            </>
           )}
           <button
             type="button"

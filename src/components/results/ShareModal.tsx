@@ -52,10 +52,6 @@ export function ShareModal({ open, onClose, result, counts }: ShareModalProps) {
   );
 
   const buildAudioSnapshot = () => {
-    const language =
-      typeof window !== "undefined"
-        ? (localStorage.getItem(LANG_STORAGE_KEY) ?? "en")
-        : "en";
     return {
       kind: "audio" as const,
       metadata: {
@@ -63,9 +59,16 @@ export function ShareModal({ open, onClose, result, counts }: ShareModalProps) {
         reportDate: result.metadata.reportDate ?? null,
         labName: result.metadata.labName ?? null,
       },
-      language,
-      summaryText: AudioService.buildScript(result, language),
+      language: audioLang,
+      voiceStyle,
+      summaryText: AudioService.buildScript(result, audioLang),
     };
+  };
+
+  const handleLangChange = (next: SupportedLang) => {
+    setAudioLang(next);
+    setAudioUrl(null); // force regenerate so recipient gets new language
+    void setLang(next);
   };
 
   useEffect(() => {

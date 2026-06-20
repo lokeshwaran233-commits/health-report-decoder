@@ -6,6 +6,10 @@ import { toast } from "sonner";
 import { Button } from "@/components/rx/Button";
 import { createShareToken } from "@/lib/cloudSync.functions";
 import { AudioService } from "@/lib/audioService";
+import { ShareQRCode } from "@/components/share/ShareQRCode";
+import { VoicePicker, type VoiceStyle } from "@/components/share/VoicePicker";
+import { useLanguage } from "@/hooks/useLanguage";
+import type { SupportedLang } from "@/i18n/config";
 import type { AnalysisResult } from "@/types/report";
 
 export interface ShareModalProps {
@@ -15,9 +19,14 @@ export interface ShareModalProps {
   counts: { normal: number; watch: number; flagged: number };
 }
 
-const LANG_STORAGE_KEY = "rx_audio_lang";
-
 export function ShareModal({ open, onClose, result, counts }: ShareModalProps) {
+  const { lang, setLang } = useLanguage();
+  const [audioLang, setAudioLang] = useState<SupportedLang>(lang);
+  const [voiceStyle, setVoiceStyle] = useState<VoiceStyle>("warm");
+
+  useEffect(() => {
+    setAudioLang(lang);
+  }, [lang]);
   const reduceMotion = useReducedMotion();
   const closeRef = useRef<HTMLButtonElement>(null);
   const mintToken = useServerFn(createShareToken);

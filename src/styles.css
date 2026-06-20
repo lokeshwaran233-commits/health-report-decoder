@@ -411,6 +411,7 @@
   to {
     opacity: 1;
     transform: translateY(0);
+  }
 }
 
 /* Used by v2 components */
@@ -419,4 +420,3 @@
   to { opacity: 1; transform: translateY(0); }
 }
 .animate-fadeUp { animation: fadeUp 0.4s ease-out both; }
-}

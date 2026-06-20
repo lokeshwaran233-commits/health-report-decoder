@@ -26,13 +26,13 @@ export function LanguageSwitcher({ className }: { className?: string }) {
         onClick={() => setOpen((v) => !v)}
         aria-label="Change language"
         aria-expanded={open}
-        className="inline-flex items-center gap-1.5 h-9 px-3 rounded-pill border border-brand-border bg-white text-sm text-brand-dark hover:bg-brand-surface transition-colors"
+        className="inline-flex items-center gap-1.5 h-9 px-3 rounded-pill border border-brand-border bg-brand-card text-sm text-brand-dark hover:bg-brand-surface transition-colors"
       >
         <Globe className="h-3.5 w-3.5" aria-hidden="true" />
         <span>{lang.toUpperCase()}</span>
       </button>
       {open && (
-        <div className="absolute right-0 mt-2 w-44 rounded-card bg-white border border-brand-border shadow-lg py-1 z-50">
+        <div className="absolute right-0 mt-2 w-44 rounded-card bg-brand-card border border-brand-border shadow-lg py-1 z-50">
           {SUPPORTED_LANGS.map((code) => {
             const meta = LANG_LABELS[code as SupportedLang];
             const active = code === lang;

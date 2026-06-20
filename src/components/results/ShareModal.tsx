@@ -6,6 +6,10 @@ import { toast } from "sonner";
 import { Button } from "@/components/rx/Button";
 import { createShareToken } from "@/lib/cloudSync.functions";
 import { AudioService } from "@/lib/audioService";
+import { ShareQRCode } from "@/components/share/ShareQRCode";
+import { VoicePicker, type VoiceStyle } from "@/components/share/VoicePicker";
+import { useLanguage } from "@/hooks/useLanguage";
+import type { SupportedLang } from "@/i18n/config";
 import type { AnalysisResult } from "@/types/report";
 
 export interface ShareModalProps {
@@ -15,9 +19,14 @@ export interface ShareModalProps {
   counts: { normal: number; watch: number; flagged: number };
 }
 
-const LANG_STORAGE_KEY = "rx_audio_lang";
-
 export function ShareModal({ open, onClose, result, counts }: ShareModalProps) {
+  const { lang, setLang } = useLanguage();
+  const [audioLang, setAudioLang] = useState<SupportedLang>(lang);
+  const [voiceStyle, setVoiceStyle] = useState<VoiceStyle>("warm");
+
+  useEffect(() => {
+    setAudioLang(lang);
+  }, [lang]);
   const reduceMotion = useReducedMotion();
   const closeRef = useRef<HTMLButtonElement>(null);
   const mintToken = useServerFn(createShareToken);
@@ -43,10 +52,6 @@ export function ShareModal({ open, onClose, result, counts }: ShareModalProps) {
   );
 
   const buildAudioSnapshot = () => {
-    const language =
-      typeof window !== "undefined"
-        ? (localStorage.getItem(LANG_STORAGE_KEY) ?? "en")
-        : "en";
     return {
       kind: "audio" as const,
       metadata: {
@@ -54,9 +59,16 @@ export function ShareModal({ open, onClose, result, counts }: ShareModalProps) {
         reportDate: result.metadata.reportDate ?? null,
         labName: result.metadata.labName ?? null,
       },
-      language,
-      summaryText: AudioService.buildScript(result, language),
+      language: audioLang,
+      voiceStyle,
+      summaryText: AudioService.buildScript(result, audioLang),
     };
+  };
+
+  const handleLangChange = (next: SupportedLang) => {
+    setAudioLang(next);
+    setAudioUrl(null); // force regenerate so recipient gets new language
+    void setLang(next);
   };
 
   useEffect(() => {
@@ -172,7 +184,7 @@ export function ShareModal({ open, onClose, result, counts }: ShareModalProps) {
         initial={{ opacity: 0, scale: 0.96 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: reduceMotion ? 0 : 0.18 }}
-        className="w-full max-w-md rounded-card bg-white p-6 shadow-2xl relative max-h-[90dvh] overflow-y-auto"
+        className="w-full max-w-md rounded-card bg-brand-card p-6 shadow-2xl relative max-h-[90dvh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
         <button
@@ -203,9 +215,12 @@ export function ShareModal({ open, onClose, result, counts }: ShareModalProps) {
             {busy === "summary" ? "Creating link…" : "Copy shareable link"}
           </Button>
           {summaryUrl && (
-            <p className="text-xs text-brand-hint break-all bg-brand-surface rounded-btn px-3 py-2">
-              {summaryUrl}
-            </p>
+            <>
+              <p className="text-xs text-brand-hint break-all bg-brand-surface rounded-btn px-3 py-2">
+                {summaryUrl}
+              </p>
+              <ShareQRCode url={summaryUrl} label="Scan with any phone camera to view" />
+            </>
           )}
           <button
             type="button"
@@ -234,19 +249,31 @@ export function ShareModal({ open, onClose, result, counts }: ShareModalProps) {
         </p>
 
         <div className="mt-4 space-y-3">
+          <VoicePicker
+            language={audioLang}
+            onLanguageChange={handleLangChange}
+            voiceStyle={voiceStyle}
+            onVoiceStyleChange={(v) => {
+              setVoiceStyle(v);
+              setAudioUrl(null);
+            }}
+          />
           <button
             type="button"
             onClick={copyAudio}
             disabled={busy !== null}
-            className="w-full inline-flex items-center justify-center gap-2 rounded-btn border-2 border-brand-teal text-brand-teal bg-white h-11 px-4 text-sm font-semibold hover:bg-brand-teal hover:text-white transition-colors disabled:opacity-60"
+            className="w-full inline-flex items-center justify-center gap-2 rounded-btn border-2 border-brand-teal text-brand-teal bg-brand-card h-11 px-4 text-sm font-semibold hover:bg-brand-teal hover:text-white transition-colors disabled:opacity-60"
           >
             <Mic className="h-4 w-4" aria-hidden="true" />
             {busy === "audio" ? "Creating audio link…" : "Copy audio link"}
           </button>
           {audioUrl && (
-            <p className="text-xs text-brand-hint break-all bg-brand-surface rounded-btn px-3 py-2">
-              {audioUrl}
-            </p>
+            <>
+              <p className="text-xs text-brand-hint break-all bg-brand-surface rounded-btn px-3 py-2">
+                {audioUrl}
+              </p>
+              <ShareQRCode url={audioUrl} label="Scan to listen on any device" />
+            </>
           )}
           <button
             type="button"

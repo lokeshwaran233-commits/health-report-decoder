@@ -1,79 +1,74 @@
-## UltraGuard build-out
+## Final Build — QR Sharing, Mobile Theme Fix, Multilingual Voice, Tutorial/Demo Modality
 
-You uploaded a 2104-line concatenated source file containing 7 of the 9 layers (types + Layers 1, 2, 4, 5, 6, 7, 8). Layers 3 (multi-agent validator) and 9 (audit logger) are described in the header comment but missing from the file. I'll split the file into its intended module structure, scaffold the two missing layers, expose one `runUltraGuard(...)` orchestrator, and wire it into all three AI surfaces.
+Four scoped changes to wrap up the product.
 
-### 1. Module layout — `src/lib/ultraguard/`
+---
 
-```text
-src/lib/ultraguard/
-  types.ts                       (file lines 1-184)        — shared types
-  tokenConstraints.ts            (lines 185-281)           — Layer 1
-  closedBookPrompts.ts           (lines 282-552)           — Layer 2
-  structuredOutputEnforcer.ts    (lines 553-840)           — Layer 4
-  evidenceLinkValidator.ts       (lines 841-1122)          — Layer 5
-  syndromeClusterGuard.ts        (lines 1123-1608)         — Layer 6
-  contradictionDetector.ts       (lines 1609-1873)         — Layer 7
-  confidencePropagator.ts        (lines 1874-2104)         — Layer 8
-  multiAgentValidator.ts         (new — Layer 3)           — runs validator LLM
-  auditLogger.ts                 (new — Layer 9)           — persists audit
-  orchestrator.ts                (new)                     — runUltraGuard()
-  index.ts                       (new)                     — public re-exports
-```
+### 1. QR Code Sharing Layer (new)
 
-Each split file keeps its original code verbatim; only the surrounding section-banner is dropped where it duplicates the new file header.
+Add a QR code to **ShareModal** and **AudioShareView** so any phone camera can open the recipient's view of the summary or audio.
 
-### 2. New layers
+- Add dependency: `qrcode` (tiny, ~20KB, generates SVG/canvas client-side, no network).
+- New component `src/components/share/ShareQRCode.tsx` — renders the share URL as a crisp SVG QR with the app logo in the center, plus a "Download PNG" and "Share image" (Web Share API with `navigator.canShare({ files })` fallback) button.
+- Wired into `ShareModal.tsx`: after `ensureSummary()` / `ensureAudio()` returns a token URL, render the QR below the URL box. Same 1-hour TTL inherited from the share token — no backend change.
+- Works for both summary share (`/s/$token`) and audio share. Recipient scans → opens existing `s.$token.tsx` route → sees `SharedSummaryView` exactly as before.
 
-**Layer 3 — `multiAgentValidator.ts`**
-- Calls Lovable AI Gateway (`google/gemini-3-flash-preview`) a second time using `buildValidatorSystemPrompt()` + `buildValidatorUserMessage()` from Layer 2.
-- Uses Layer 1's `buildConstrainedPayload` (temperature=0).
-- Returns `MultiAgentVerdict` (already typed in `types.ts`) — disagreements become `GuardViolation`s of severity `DOWNGRADE`.
-- Server-side only (`*.server.ts` import) — never reachable from the client.
+### 2. Mobile Dark/Light Mode Fix
 
-**Layer 9 — `auditLogger.ts`**
-- Writes an `UltraGuardReport` per analysis to a new `ultraguard_audit` table (one row per run: `id`, `user_id`, `surface` (`scan|lab|zeno`), `report` JSONB, `sentinel`, `violation_count`, `created_at`).
-- RLS: owner-read-only; service-role insert from server functions. Anonymous runs (sample reports) store `user_id = null` and an `ip_hash`.
-- Reuses existing `guard_violations_log` table where shape fits; new audit table holds the full structured report.
+Symptom: toggle flips the class but the UI doesn't visibly change on mobile.
 
-**Orchestrator — `orchestrator.ts`**
+Root cause (to verify during build): `ThemeToggle` and most surfaces use hardcoded `bg-white` and `brand-*` tokens that have no `.dark` variant defined in `src/styles.css`. Mobile Safari/Chrome also apply `color-scheme` aggressively, so form controls flip but content panels don't.
 
-```text
-runUltraGuard({ rawLLM, modality, region, qualityHints, runValidator })
-  → enforceStructuredOutput        (Layer 4)
-  → normalizeToUltraGuardedFindings
-  → validateEvidenceLinks          (Layer 5)
-  → runSyndromeClusterGuard        (Layer 6)
-  → detectContradictions           (Layer 7)
-  → propagateConfidence            (Layer 8)
-  → multiAgentValidate (optional)  (Layer 3, async)
-  → auditLog                       (Layer 9)
-  → returns UltraGuardReport + sentinel (RELEASE | RELEASE_WITH_CAVEAT | INSUFFICIENT_DATA | BLOCKED)
-```
+Fix:
+- Audit `src/styles.css` and add `.dark` overrides for the `--brand-*` CSS variables (surface, border, dark text, muted, hint, card background).
+- Replace remaining hardcoded `bg-white` in top-level shells (`Navbar`, `ShareModal`, dropdowns, modals) with `bg-brand-card` token so they respond.
+- Ensure `ThemeProvider` writes `color-scheme` early (already does) and add a small inline script in `__root.tsx` `<head>` to apply the saved theme class before first paint (prevents the mobile flash that some users misread as "not working").
+- Verify on mobile viewport via session replay / browser screenshot after the change.
 
-If sentinel === `BLOCKED`, callers must surface a safety message instead of findings.
+### 3. Deep Voice — Reliable Multilingual TTS
 
-### 3. Wiring into the three surfaces
+Today, language switching for the audio summary is brittle: the language is read from `localStorage` (`rx_audio_lang`) but `LanguageSwitcher` writes to a different key (`useLanguage` hook), and the TTS prompt isn't always rebuilt per-language.
 
-- **Imaging safety (scans)** — `src/lib/scanAnalysis.functions.ts` + `src/lib/imagingSafety/pipeline.ts`: replace the existing ad-hoc guard with `buildConstrainedPayload` + `buildGeneratorSystemPrompt(modality, region)` for the request, then `runUltraGuard(...)` on the response. `ScanResultView` already understands `caveats`/`significance` — we'll pass through sanitized findings.
-- **Lab reports** — `src/lib/analyze.functions.ts` and `src/lib/clinicalEngine/*`: replace `clinicalEngine/hallucinationGuard.ts` with `runUltraGuard` (modality="lab_report"). The existing Zod synthesis schema is mapped onto `RawLLMObservations` via a small adapter.
-- **Zeno** — `src/lib/zeno/zeno.functions.ts`: each Zeno reply is wrapped: temperature=0 envelope, closed-book system prompt augmented with the user's report context, validator pass on the answer, downgrade or block + caveat injection. Emergency detector (existing) runs before UltraGuard.
+Fix:
+- Unify language state: `AudioService.buildScript` and `ShareModal.buildAudioSnapshot` read from the same `useLanguage()` source of truth (not direct `localStorage`).
+- Add an inline **Voice & Language picker** inside `ShareModal` audio section and inside `AudioShareView`:
+  - Language dropdown: English, Hindi, Tamil, Telugu, Bengali, Marathi, Spanish, French, German, Arabic, Mandarin (already in `i18n/config`).
+  - Voice style: Warm / Clinical / Energetic (maps to ElevenLabs voice IDs + `voice_settings`).
+  - "Preview 5 seconds" button before generating the full audio.
+- Server-side (`audioService` / TTS server fn): pass `language_code` + voice settings explicitly, use `eleven_multilingual_v2` for non-English, `eleven_turbo_v2_5` for English streaming. Surface errors as toasts instead of silent fail.
+- Cache generated audio by `(reportId, lang, voice)` hash so re-shares don't re-bill.
 
-In all three, `BLOCKED` sentinel returns a safe fallback ("I don't have enough evidence to answer that reliably — please consult a clinician") instead of the raw model output.
+### 4. Tutorial & Demo Modality ("How ReportRx Works")
 
-### 4. Database migration
+A dedicated, game-tutorial-style page that walks new users through the full pipeline using a real **sample lab report + sample scan**, with Zeno narrating each step.
 
-One migration creates `ultraguard_audit` with RLS + grants per the project's standard pattern (authenticated owner-read, service-role full). No changes to existing tables.
+- New route: `src/routes/tutorial.tsx` (`/tutorial`) — linked from landing CTA ("See how it works") and from the empty-state of `/history`.
+- Layout: full-bleed scrollytelling with a left-rail step indicator (Step 1 of 6) and a stage area on the right. On mobile: vertical stepper + sticky "Next" button.
+- Six steps, each with rich animated visuals:
+  1. **Upload** — sample CBC report PDF appears, drag-drop animation, "we never store raw biomarkers without your consent".
+  2. **OCR + Parse** — text extraction highlight, structured biomarkers fly into a table.
+  3. **Core Engine Analysis** — biomarkers get tagged Normal / Watch / Flagged with reasoning bubbles.
+  4. **UltraGuard Safety Pass** — show the 9 layers as a checklist lighting up (closed-book, evidence link, syndrome cluster, contradiction, confidence, audit). Reinforces trust.
+  5. **Zeno Orchestration** — Zeno orb animates, "asks" follow-up questions, suggests doctor questions, generates the plain-English summary. Shown as a fake chat transcript.
+  6. **Share / Audio / QR** — final view with sample QR code that scans to a read-only demo page.
+- Same flow exists for a scan (X-ray sample): tabs at the top toggle between **Lab Report demo** and **Imaging Scan demo**.
+- Built from canned data (no real API calls) so it loads instantly and works offline-ish. Sample data lives in `src/lib/tutorial/sampleData.ts`.
+- Add "Try it yourself" CTA on the final step → routes to `/` (upload).
 
-### 5. Tests / verification
+### 5. Final Review & Sign-off Pass
 
-- Build must pass (TS strict).
-- One manual scan run + one lab-report run + one Zeno question on the preview to confirm sentinel/caveats render and no regression on the existing happy path.
-- Security scan re-run after migration.
+Quick polish sweep alongside the above:
+- Verify all routes have unique `head()` metadata (add to `/tutorial`).
+- Confirm UltraGuard audit writes are flowing on all 3 surfaces.
+- Run security scan one more time; mark intentional findings.
+- Smoke-test: signup → upload sample → analyze → share with QR → scan QR on phone → audio playback in 2 languages → tutorial walkthrough → dark/light on mobile.
 
-### Out of scope
+---
 
-- No UI redesign — the existing scan/lab/Zeno views already render `caveats`, `significance`, and `confidence` bands.
-- No changes to billing, auth, or payment flows.
-- No rewrite of the existing `imagingSafety/pipeline.ts` orchestration beyond swapping the guard layer; the modality detection / consent flow stays as-is.
+### Technical notes
 
-Approve and I'll execute end-to-end (split → scaffold → migration → wire → verify).
+- **Files created:** `src/components/share/ShareQRCode.tsx`, `src/routes/tutorial.tsx`, `src/components/tutorial/*` (Step components), `src/lib/tutorial/sampleData.ts`, `src/components/share/VoicePicker.tsx`.
+- **Files edited:** `src/styles.css` (dark tokens), `src/components/results/ShareModal.tsx`, `src/components/results/AudioShareView.tsx`, `src/components/theme/ThemeToggle.tsx`, `src/routes/__root.tsx` (pre-paint theme script, tutorial nav link), `src/components/layout/Navbar.tsx`, `src/lib/audioService.ts`, audio TTS server fn.
+- **Dependencies:** `qrcode` + `@types/qrcode`.
+- **No DB migrations.** No new secrets. No schema changes.
+- **Out of scope:** payment/auth changes, redesign of existing screens, new AI models.

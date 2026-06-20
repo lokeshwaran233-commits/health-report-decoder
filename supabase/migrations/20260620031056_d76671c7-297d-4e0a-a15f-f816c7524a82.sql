@@ -1,0 +1,1 @@
+DROP POLICY IF EXISTS "activity_authenticated_topic_read" ON realtime.messages;

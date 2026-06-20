@@ -249,19 +249,31 @@ export function ShareModal({ open, onClose, result, counts }: ShareModalProps) {
         </p>
 
         <div className="mt-4 space-y-3">
+          <VoicePicker
+            language={audioLang}
+            onLanguageChange={handleLangChange}
+            voiceStyle={voiceStyle}
+            onVoiceStyleChange={(v) => {
+              setVoiceStyle(v);
+              setAudioUrl(null);
+            }}
+          />
           <button
             type="button"
             onClick={copyAudio}
             disabled={busy !== null}
-            className="w-full inline-flex items-center justify-center gap-2 rounded-btn border-2 border-brand-teal text-brand-teal bg-white h-11 px-4 text-sm font-semibold hover:bg-brand-teal hover:text-white transition-colors disabled:opacity-60"
+            className="w-full inline-flex items-center justify-center gap-2 rounded-btn border-2 border-brand-teal text-brand-teal bg-brand-card h-11 px-4 text-sm font-semibold hover:bg-brand-teal hover:text-white transition-colors disabled:opacity-60"
           >
             <Mic className="h-4 w-4" aria-hidden="true" />
             {busy === "audio" ? "Creating audio link…" : "Copy audio link"}
           </button>
           {audioUrl && (
-            <p className="text-xs text-brand-hint break-all bg-brand-surface rounded-btn px-3 py-2">
-              {audioUrl}
-            </p>
+            <>
+              <p className="text-xs text-brand-hint break-all bg-brand-surface rounded-btn px-3 py-2">
+                {audioUrl}
+              </p>
+              <ShareQRCode url={audioUrl} label="Scan to listen on any device" />
+            </>
           )}
           <button
             type="button"

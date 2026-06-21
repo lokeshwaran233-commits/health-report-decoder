@@ -245,6 +245,27 @@ export const analyzeScan = createServerFn({ method: "POST" })
       );
     }
 
+    // BLOCKING safety pass on patient-facing layman text — same hallucination
+    // guard the lab-report path uses. Strips definitive-diagnosis verbs,
+    // drug-dose recommendations, and prohibited phrases.
+    try {
+      const { runHallucinationGuard } = await import(
+        "@/lib/clinicalEngine/hallucinationGuard"
+      );
+      result.layman.whatThisMeans = runHallucinationGuard(
+        result.layman.whatThisMeans ?? "",
+      ).sanitizedText;
+      result.layman.keyFindings = result.layman.keyFindings.map((f) => ({
+        ...f,
+        plainEnglish: runHallucinationGuard(f.plainEnglish ?? "").sanitizedText,
+      }));
+      result.layman.nextSteps = result.layman.nextSteps.map(
+        (s) => runHallucinationGuard(s).sanitizedText,
+      );
+    } catch (err) {
+      console.error("[analyzeScan] hallucination guard skipped:", err);
+    }
+
     // UltraGuard 9-layer audit pass (non-blocking; logs hallucination risk).
     try {
       const { guardAndAudit } = await import("@/lib/ultraguard/guardAndAudit.server");
@@ -259,6 +280,9 @@ export const analyzeScan = createServerFn({ method: "POST" })
     } catch (err) {
       console.error("[analyzeScan] UltraGuard audit skipped:", err);
     }
+
+    // Record decode against entitlements (best-effort).
+    await recordDecode(supabaseAdmin, context.userId, quotaSnapshot);
 
     return result;
   });

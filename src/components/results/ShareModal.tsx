@@ -72,7 +72,8 @@ export function ShareModal({ open, onClose, result, counts }: ShareModalProps) {
   const handleLangChange = (next: SupportedLang) => {
     setAudioLang(next);
     setAudioUrl(null); // force regenerate so recipient gets new language
-    void setLang(next);
+    // NOTE: intentionally not calling the global setLang() — share-modal
+    // language is local to this dialog only.
   };
 
   useEffect(() => {

@@ -115,7 +115,8 @@ export interface ScanAnalysisError {
     | "PAYMENT_REQUIRED"
     | "PARSE_ERROR"
     | "INADEQUATE_IMAGE"
-    | "NO_DATA_FOUND";
+    | "NO_DATA_FOUND"
+    | "QUOTA_EXCEEDED";
   message: string;
 }
 

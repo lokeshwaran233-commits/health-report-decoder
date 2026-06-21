@@ -10,10 +10,11 @@ export const Route = createFileRoute("/scan-v2")({
   head: () => ({
     meta: [
       { title: "Scan Decoder v2 — Safety Pipeline" },
+      { name: "robots", content: "noindex, nofollow" },
       {
         name: "description",
         content:
-          "Imaging Safety Pipeline: 12-phase guardrails against medical AI hallucinations across CT, MRI, DEXA, US, Echo, ECG, EEG, PET.",
+          "Internal: Imaging Safety Pipeline test harness.",
       },
     ],
   }),

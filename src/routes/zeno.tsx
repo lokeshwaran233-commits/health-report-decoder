@@ -8,6 +8,7 @@ export const Route = createFileRoute("/zeno")({
   head: () => ({
     meta: [
       { title: "Zeno — Your AI Health Companion | ReportRx" },
+      { name: "robots", content: "noindex, nofollow" },
       {
         name: "description",
         content:

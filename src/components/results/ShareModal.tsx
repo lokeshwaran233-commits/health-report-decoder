@@ -20,13 +20,17 @@ export interface ShareModalProps {
 }
 
 export function ShareModal({ open, onClose, result, counts }: ShareModalProps) {
-  const { lang, setLang } = useLanguage();
+  const { lang } = useLanguage();
   const [audioLang, setAudioLang] = useState<SupportedLang>(lang);
   const [voiceStyle, setVoiceStyle] = useState<VoiceStyle>("warm");
 
+  // Initialize ShareModal language from the user's app language only once,
+  // when the modal opens. Subsequent in-modal changes are local — they MUST
+  // NOT mutate the global app language for the signed-in user.
   useEffect(() => {
-    setAudioLang(lang);
-  }, [lang]);
+    if (open) setAudioLang(lang);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
   const reduceMotion = useReducedMotion();
   const closeRef = useRef<HTMLButtonElement>(null);
   const mintToken = useServerFn(createShareToken);
@@ -68,7 +72,8 @@ export function ShareModal({ open, onClose, result, counts }: ShareModalProps) {
   const handleLangChange = (next: SupportedLang) => {
     setAudioLang(next);
     setAudioUrl(null); // force regenerate so recipient gets new language
-    void setLang(next);
+    // NOTE: intentionally not calling the global setLang() — share-modal
+    // language is local to this dialog only.
   };
 
   useEffect(() => {

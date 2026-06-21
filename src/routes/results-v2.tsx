@@ -23,6 +23,7 @@ export const Route = createFileRoute("/results-v2")({
   head: () => ({
     meta: [
       { title: "Your Results — ReportRx 2026" },
+      { name: "robots", content: "noindex, nofollow" },
       {
         name: "description",
         content:

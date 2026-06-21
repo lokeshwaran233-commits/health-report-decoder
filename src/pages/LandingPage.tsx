@@ -56,7 +56,7 @@ function Hero() {
 
 function TrustBar() {
   const items = [
-    { icon: Shield, text: "Nothing stored on our servers — ever" },
+    { icon: Shield, text: "Saved to your account only when you sign in — and you can delete anytime" },
     { icon: Award, text: "Built by a Biochemistry gold medallist, University of Madras" },
     { icon: Clock, text: "Results in under 30 seconds" },
   ];
@@ -110,8 +110,9 @@ export function LandingPage() {
       <div className="px-4 pb-4">
         <UploadCard />
         <p className="mx-auto mt-4 max-w-2xl text-center text-xs text-brand-hint">
-          Your data never leaves your device during extraction — we only send
-          text to our AI.
+          PDFs are read in your browser; images and pasted text are sent to our
+          AI for analysis. Results are saved to your account only when you're
+          signed in — see our Privacy Policy.
         </p>
       </div>
       <ScrollReveal>

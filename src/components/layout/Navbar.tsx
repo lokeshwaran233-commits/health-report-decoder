@@ -44,17 +44,18 @@ type NavLink =
       id: string;
       label: string;
       kind: "route";
-      to: "/history" | "/scan" | "/zeno" | "/about" | "/privacy" | "/profile" | "/pricing" | "/tutorial";
+      to: "/history" | "/scan" | "/zeno" | "/about" | "/privacy" | "/profile" | "/pricing" | "/tutorial" | "/my-health-story";
     };
 
 function useNavLinks(): NavLink[] {
   const { t } = useTranslation();
   return [
-    { id: "tutorial", label: "Tutorial", kind: "route", to: "/tutorial" },
     { id: "scan", label: "Scan Decoder", kind: "route", to: "/scan" },
+    { id: "story", label: "Health Story", kind: "route", to: "/my-health-story" },
     { id: "zeno", label: "Zeno AI", kind: "route", to: "/zeno" },
-    { id: "pricing", label: "Pricing", kind: "route", to: "/pricing" },
     { id: "history", label: t("nav.history"), kind: "route", to: "/history" },
+    { id: "pricing", label: "Pricing", kind: "route", to: "/pricing" },
+    { id: "tutorial", label: "Tutorial", kind: "route", to: "/tutorial" },
     { id: "about", label: t("nav.about"), kind: "route", to: "/about" },
     { id: "privacy", label: t("nav.privacy"), kind: "route", to: "/privacy" },
   ];

@@ -124,6 +124,19 @@ export const analyzeScan = createServerFn({ method: "POST" })
       fail("API_ERROR", "AI service is not configured on the server.");
     }
 
+    // Enforce entitlement quota BEFORE spending the (expensive) vision call.
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { readEntitlements, recordDecode } = await import("@/lib/billing/quota.server");
+    const quotaSnapshot = await readEntitlements(supabaseAdmin, context.userId);
+    if (!quotaSnapshot.allowed) {
+      fail(
+        "QUOTA_EXCEEDED",
+        quotaSnapshot.reason === "quota-hit"
+          ? "You've used your free scan for this period. Upgrade your plan or add credits to continue."
+          : "We couldn't verify your plan. Please refresh and try again.",
+      );
+    }
+
     const modality =
       data.type === "scan_image" ? data.modality : "report_text";
 
@@ -232,6 +245,30 @@ export const analyzeScan = createServerFn({ method: "POST" })
       );
     }
 
+    // BLOCKING safety pass on patient-facing layman text — same hallucination
+    // guard the lab-report path uses. Strips definitive-diagnosis verbs,
+    // drug-dose recommendations, and prohibited phrases.
+    try {
+      const { runHallucinationGuard } = await import(
+        "@/lib/clinicalEngine/hallucinationGuard"
+      );
+      result.layman.summary = runHallucinationGuard(
+        result.layman.summary ?? "",
+      ).sanitizedText;
+      result.layman.whatThisMeans = runHallucinationGuard(
+        result.layman.whatThisMeans ?? "",
+      ).sanitizedText;
+      result.layman.keyFindings = result.layman.keyFindings.map((f) => ({
+        ...f,
+        plainEnglish: runHallucinationGuard(f.plainEnglish ?? "").sanitizedText,
+      }));
+      result.layman.nextSteps = result.layman.nextSteps.map(
+        (s) => runHallucinationGuard(s).sanitizedText,
+      );
+    } catch (err) {
+      console.error("[analyzeScan] hallucination guard skipped:", err);
+    }
+
     // UltraGuard 9-layer audit pass (non-blocking; logs hallucination risk).
     try {
       const { guardAndAudit } = await import("@/lib/ultraguard/guardAndAudit.server");
@@ -246,6 +283,9 @@ export const analyzeScan = createServerFn({ method: "POST" })
     } catch (err) {
       console.error("[analyzeScan] UltraGuard audit skipped:", err);
     }
+
+    // Record decode against entitlements (best-effort).
+    await recordDecode(supabaseAdmin, context.userId, quotaSnapshot);
 
     return result;
   });

@@ -458,6 +458,12 @@ export const analyzeReport = createServerFn({ method: "POST" })
       console.error("[analyzeReport] usage log failed", e);
     }
 
+    // Record paid-tier decode against entitlements (best-effort).
+    if (authUserId && quotaSnapshot) {
+      const { recordDecode } = await import("@/lib/billing/quota.server");
+      await recordDecode(supabaseAdmin, authUserId, quotaSnapshot);
+    }
+
     // UltraGuard 9-layer audit pass (non-blocking).
     try {
       const { guardAndAudit } = await import("@/lib/ultraguard/guardAndAudit.server");

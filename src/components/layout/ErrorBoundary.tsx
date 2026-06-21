@@ -45,17 +45,19 @@ export function ErrorBoundary({ error, reset }: ErrorBoundaryProps) {
           Something went wrong
         </h1>
         <p className="mt-2 text-sm text-brand-muted">
-          We hit an unexpected error rendering this page. Your data is safe — no
-          report content is stored on our servers.
+          We hit an unexpected error rendering this page. Try again — if the
+          problem keeps happening, please contact support.
         </p>
 
-        <pre
-          className="mt-5 max-h-32 overflow-auto rounded-btn border border-brand-border bg-white p-3 text-left text-xs text-brand-coral font-mono whitespace-pre-wrap break-words"
-          role="alert"
-          aria-live="polite"
-        >
-          {error.message || "Unknown error"}
-        </pre>
+        {import.meta.env.DEV && (
+          <pre
+            className="mt-5 max-h-32 overflow-auto rounded-btn border border-brand-border bg-brand-card p-3 text-left text-xs text-brand-coral font-mono whitespace-pre-wrap break-words"
+            role="alert"
+            aria-live="polite"
+          >
+            {error.message || "Unknown error"}
+          </pre>
+        )}
 
         <div className="mt-6 flex flex-wrap justify-center gap-2">
           <Link to="/" aria-label="Return to ReportRx home">

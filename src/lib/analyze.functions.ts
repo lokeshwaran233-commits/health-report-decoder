@@ -229,7 +229,8 @@ export const analyzeReport = createServerFn({ method: "POST" })
       fail("API_ERROR", "AI service is not configured on the server. Please contact support.");
     }
 
-    // Auth: anonymous users get 3 free reports per IP. Signed-in = unlimited (plan-gated client-side).
+    // Auth: anonymous users get 3 free reports per IP.
+    // Signed-in users are now gated by their entitlement plan + credits.
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     let authUserId: string | null = null;
     try {
@@ -244,6 +245,7 @@ export const analyzeReport = createServerFn({ method: "POST" })
     }
 
     let ipHash: string | null = null;
+    let quotaSnapshot: import("@/lib/billing/quota.server").QuotaDecision | null = null;
     if (!authUserId) {
       const ip = getRequestIP({ xForwardedFor: true }) ?? "unknown";
       ipHash = createHash("sha256").update(ip).digest("hex");
@@ -257,6 +259,17 @@ export const analyzeReport = createServerFn({ method: "POST" })
         fail(
           "QUOTA_EXCEEDED",
           `You've used your ${ANON_REPORT_LIMIT} free analyses. Sign in to keep analyzing and save your history.`,
+        );
+      }
+    } else {
+      const { readEntitlements } = await import("@/lib/billing/quota.server");
+      quotaSnapshot = await readEntitlements(supabaseAdmin, authUserId);
+      if (!quotaSnapshot.allowed) {
+        fail(
+          "QUOTA_EXCEEDED",
+          quotaSnapshot.reason === "quota-hit"
+            ? "You've used your free analysis for this period. Upgrade your plan or add credits to continue."
+            : "We couldn't verify your plan. Please refresh and try again.",
         );
       }
     }

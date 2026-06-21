@@ -19,6 +19,7 @@ export const Route = createFileRoute("/my-health-story")({
   head: () => ({
     meta: [
       { title: "My Health Story — ReportRx" },
+      { name: "robots", content: "noindex, nofollow" },
       {
         name: "description",
         content:

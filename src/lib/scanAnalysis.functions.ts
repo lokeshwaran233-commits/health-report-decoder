@@ -124,6 +124,19 @@ export const analyzeScan = createServerFn({ method: "POST" })
       fail("API_ERROR", "AI service is not configured on the server.");
     }
 
+    // Enforce entitlement quota BEFORE spending the (expensive) vision call.
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { readEntitlements, recordDecode } = await import("@/lib/billing/quota.server");
+    const quotaSnapshot = await readEntitlements(supabaseAdmin, context.userId);
+    if (!quotaSnapshot.allowed) {
+      fail(
+        "QUOTA_EXCEEDED",
+        quotaSnapshot.reason === "quota-hit"
+          ? "You've used your free scan for this period. Upgrade your plan or add credits to continue."
+          : "We couldn't verify your plan. Please refresh and try again.",
+      );
+    }
+
     const modality =
       data.type === "scan_image" ? data.modality : "report_text";
 

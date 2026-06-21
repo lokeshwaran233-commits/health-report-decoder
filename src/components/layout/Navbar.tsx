@@ -57,6 +57,7 @@ function useNavLinks(): NavLink[] {
     { id: "pricing", label: "Pricing", kind: "route", to: "/pricing" },
     { id: "tutorial", label: "Tutorial", kind: "route", to: "/tutorial" },
     { id: "about", label: t("nav.about"), kind: "route", to: "/about" },
+    { id: "privacy", label: t("nav.privacy"), kind: "route", to: "/privacy" },
   ];
 }
 

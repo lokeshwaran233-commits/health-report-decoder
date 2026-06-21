@@ -18,7 +18,7 @@ const variantClasses: Record<ButtonVariant, string> = {
   primary:
     "bg-brand-teal text-white hover:bg-brand-teal-mid active:bg-brand-teal disabled:bg-brand-hint disabled:text-white",
   secondary:
-    "bg-white text-brand-teal border border-brand-teal hover:bg-brand-teal-light disabled:text-brand-hint disabled:border-brand-border disabled:bg-white",
+    "bg-brand-card text-brand-teal border border-brand-teal hover:bg-brand-teal-light disabled:text-brand-hint disabled:border-brand-border disabled:bg-brand-card",
   ghost:
     "bg-transparent text-brand-muted hover:bg-brand-surface hover:text-brand-dark disabled:text-brand-hint",
 };

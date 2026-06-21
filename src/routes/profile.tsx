@@ -23,6 +23,7 @@ export const Route = createFileRoute("/profile")({
   head: () => ({
     meta: [
       { title: "My Profile — ReportRx" },
+      { name: "robots", content: "noindex, nofollow" },
       {
         name: "description",
         content: "Manage your health profile, conditions, medications, and emergency contact.",

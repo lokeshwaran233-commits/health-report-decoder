@@ -56,7 +56,7 @@ function Hero() {
 
 function TrustBar() {
   const items = [
-    { icon: Shield, text: "Nothing stored on our servers — ever" },
+    { icon: Shield, text: "Saved to your account only when you sign in — and you can delete anytime" },
     { icon: Award, text: "Built by a Biochemistry gold medallist, University of Madras" },
     { icon: Clock, text: "Results in under 30 seconds" },
   ];

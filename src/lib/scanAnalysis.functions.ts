@@ -252,6 +252,9 @@ export const analyzeScan = createServerFn({ method: "POST" })
       const { runHallucinationGuard } = await import(
         "@/lib/clinicalEngine/hallucinationGuard"
       );
+      result.layman.summary = runHallucinationGuard(
+        result.layman.summary ?? "",
+      ).sanitizedText;
       result.layman.whatThisMeans = runHallucinationGuard(
         result.layman.whatThisMeans ?? "",
       ).sanitizedText;

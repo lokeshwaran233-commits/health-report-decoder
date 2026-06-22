@@ -5,7 +5,7 @@ import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { PageWrapper } from "@/components/layout/PageWrapper";
 import { ErrorBoundary } from "@/components/layout/ErrorBoundary";
-import { Toaster } from "sonner";
+import { Toaster, toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { useSessionTimeout } from "@/hooks/useSessionTimeout";
 import { ThemeProvider } from "@/components/theme/ThemeProvider";
@@ -111,7 +111,17 @@ function RootComponent() {
   const { user } = useAuth();
 
   // Sign out after 30 min of inactivity for authenticated users.
-  useSessionTimeout({ enabled: !!user });
+  useSessionTimeout({
+    enabled: !!user,
+    onWarn: (ms) => {
+      const mins = Math.max(1, Math.round(ms / 60000));
+      toast.warning(`You'll be signed out in ~${mins} min due to inactivity.`, {
+        id: "idle-warn",
+        description: "Move your mouse or press a key to stay signed in.",
+        duration: 15000,
+      });
+    },
+  });
 
   // Routes that should render WITHOUT navbar/footer/pagewrapper
   const isBarePage = pathname === "/auth" || pathname === "/auth/reset-password";

@@ -137,7 +137,15 @@ export const analyzeScan = createServerFn({ method: "POST" })
       );
     }
 
+    // Server-side magic-byte sniff — never trust the client's declared MIME.
+    if (data.type === "scan_image") {
+      const { verifyImageBase64 } = await import("@/lib/security/magicBytes.server");
+      const check = verifyImageBase64(data.content, data.mimeType);
+      if (!check.ok) fail("API_ERROR", check.error ?? "Invalid scan upload.");
+    }
+
     const modality =
+
       data.type === "scan_image" ? data.modality : "report_text";
 
     const systemPrompt = buildScanPrompt({

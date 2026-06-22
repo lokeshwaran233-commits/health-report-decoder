@@ -67,6 +67,15 @@ export function ZenoPanel({ open, onClose, report }: ZenoPanelProps) {
                 Medical
               </button>
             </div>
+            <Link
+              to="/zeno"
+              onClick={onClose}
+              className="rounded-full p-1.5 text-brand-muted hover:bg-brand-surface"
+              aria-label="Open full Zeno chat"
+              title="Open full chat"
+            >
+              <ExternalLink className="h-4 w-4" />
+            </Link>
             <button
               onClick={onClose}
               className="rounded-full p-1.5 text-brand-muted hover:bg-brand-surface"
@@ -74,6 +83,7 @@ export function ZenoPanel({ open, onClose, report }: ZenoPanelProps) {
             >
               <X className="h-4 w-4" />
             </button>
+
           </div>
         </div>
 

@@ -43,6 +43,8 @@ export const Route = createFileRoute("/scan")({
 const ERROR_MESSAGES: Record<string, string> = {
   RATE_LIMIT: "Too many scans right now — please wait a minute and try again.",
   PAYMENT_REQUIRED: "AI credits exhausted. Please contact support.",
+  QUOTA_EXCEEDED:
+    "You've used your free scan. Upgrade to Plus or grab a credit pack on the Pricing page.",
   INADEQUATE_IMAGE:
     "The image is too blurry or low quality to read reliably. Try a clearer photo.",
   PARSE_ERROR: "We had trouble reading the AI response. Please try again.",

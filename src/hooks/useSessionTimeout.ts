@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
 const DEFAULT_IDLE_MS = 30 * 60 * 1000; // 30 minutes
+const DEFAULT_WARN_BEFORE_MS = 2 * 60 * 1000; // warn 2 min before sign-out
 const ACTIVITY_EVENTS: (keyof WindowEventMap)[] = [
   "mousemove",
   "mousedown",
@@ -16,22 +17,30 @@ export const SESSION_EXPIRED_FLAG = "rx_session_expired";
 export interface UseSessionTimeoutOptions {
   enabled: boolean;
   idleMs?: number;
+  /** Fire `onWarn` this many ms before sign-out. Set to 0 to disable. */
+  warnBeforeMs?: number;
+  onWarn?: (msUntilSignout: number) => void;
   onTimeout?: () => void;
 }
 
 /**
- * Signs the user out after `idleMs` of inactivity. Activity is detected via
- * mouse, keyboard, scroll, and touch events. A flag is written to
- * localStorage so the next page (e.g. /auth) can show a friendly notice.
+ * Signs the user out after `idleMs` of inactivity. Fires `onWarn` shortly
+ * before the timeout so the UI can show a "you'll be signed out soon" toast.
+ * Activity on mouse/keyboard/scroll/touch resets both timers.
  */
 export function useSessionTimeout({
   enabled,
   idleMs = DEFAULT_IDLE_MS,
+  warnBeforeMs = DEFAULT_WARN_BEFORE_MS,
+  onWarn,
   onTimeout,
 }: UseSessionTimeoutOptions): void {
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const callbackRef = useRef(onTimeout);
-  callbackRef.current = onTimeout;
+  const warnRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const onTimeoutRef = useRef(onTimeout);
+  const onWarnRef = useRef(onWarn);
+  onTimeoutRef.current = onTimeout;
+  onWarnRef.current = onWarn;
 
   useEffect(() => {
     if (!enabled || typeof window === "undefined") return;
@@ -47,11 +56,17 @@ export function useSessionTimeout({
       } catch {
         /* ignore */
       }
-      callbackRef.current?.();
+      onTimeoutRef.current?.();
     };
 
     const reset = () => {
       if (timerRef.current) clearTimeout(timerRef.current);
+      if (warnRef.current) clearTimeout(warnRef.current);
+      if (warnBeforeMs > 0 && warnBeforeMs < idleMs) {
+        warnRef.current = setTimeout(() => {
+          onWarnRef.current?.(warnBeforeMs);
+        }, idleMs - warnBeforeMs);
+      }
       timerRef.current = setTimeout(() => {
         void trigger();
       }, idleMs);
@@ -64,11 +79,12 @@ export function useSessionTimeout({
 
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
+      if (warnRef.current) clearTimeout(warnRef.current);
       for (const ev of ACTIVITY_EVENTS) {
         window.removeEventListener(ev, reset);
       }
     };
-  }, [enabled, idleMs]);
+  }, [enabled, idleMs, warnBeforeMs]);
 }
 
 export default useSessionTimeout;

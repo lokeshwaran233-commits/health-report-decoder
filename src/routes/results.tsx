@@ -147,6 +147,7 @@ function ResultsPage() {
 
   if (analysisState === "error" || !analysisResult) {
     const isNoData = error?.code === "NO_DATA_FOUND";
+    const isQuota = error?.code === "QUOTA_EXCEEDED";
     return (
       <section className="mx-auto max-w-md px-4 py-16 text-center">
         <AlertTriangle
@@ -154,13 +155,36 @@ function ResultsPage() {
           aria-hidden="true"
         />
         <h1 className="mt-4 text-xl font-semibold text-brand-dark">
-          We couldn't analyse this report
+          {isQuota
+            ? "You've used your free decode"
+            : "We couldn't analyse this report"}
         </h1>
         <p className="mt-2 text-sm text-brand-muted">
-          {error?.message ?? "Something went wrong. Please try again."}
+          {isQuota
+            ? "Upgrade to Plus for unlimited decodes, or grab a credit pack to keep going."
+            : (error?.message ?? "Something went wrong. Please try again.")}
         </p>
         <div className="mt-6 flex flex-col gap-2">
-          {isNoData ? (
+          {isQuota ? (
+            <>
+              <Button
+                variant="primary"
+                size="md"
+                fullWidth
+                onClick={() => navigate({ to: "/pricing" })}
+              >
+                See plans & credits
+              </Button>
+              <Button
+                variant="secondary"
+                size="md"
+                fullWidth
+                onClick={() => navigate({ to: "/" })}
+              >
+                Back to upload
+              </Button>
+            </>
+          ) : isNoData ? (
             <Button
               variant="primary"
               size="md"
@@ -170,23 +194,27 @@ function ResultsPage() {
               Try pasting the text instead
             </Button>
           ) : (
-            <Button variant="primary" size="md" fullWidth onClick={retry}>
-              Try again
-            </Button>
+            <>
+              <Button variant="primary" size="md" fullWidth onClick={retry}>
+                Try again
+              </Button>
+              <Button
+                variant="secondary"
+                size="md"
+                fullWidth
+                onClick={() => navigate({ to: "/" })}
+              >
+                Upload a different report
+              </Button>
+            </>
           )}
-          <Button
-            variant="secondary"
-            size="md"
-            fullWidth
-            onClick={() => navigate({ to: "/" })}
-          >
-            Upload a different report
-          </Button>
         </div>
-        <p className="mt-6 text-xs text-brand-hint">
-          If this keeps happening, try copying your report text and using the
-          paste option.
-        </p>
+        {!isQuota && (
+          <p className="mt-6 text-xs text-brand-hint">
+            If this keeps happening, try copying your report text and using the
+            paste option.
+          </p>
+        )}
       </section>
     );
   }

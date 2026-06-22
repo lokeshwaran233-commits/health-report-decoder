@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from "react";
-import { AlertTriangle, Mic, MicOff, Send, X, Volume2 } from "lucide-react";
+import { AlertTriangle, ExternalLink, Mic, MicOff, Send, X, Volume2 } from "lucide-react";
+import { Link } from "@tanstack/react-router";
 import { useZeno } from "@/hooks/zeno/useZeno";
 import { useZenoSTT } from "@/hooks/zeno/useZenoSTT";
 import { ZenoMessage } from "./ZenoMessage";
 import type { AnalysisResult } from "@/types/report";
+
 
 interface ZenoPanelProps {
   open: boolean;

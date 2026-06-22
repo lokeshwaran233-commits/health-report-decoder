@@ -274,6 +274,16 @@ export const analyzeReport = createServerFn({ method: "POST" })
       }
     }
 
+    // Server-side magic-byte sniff — re-verify the image actually matches the
+    // declared MIME, since client validation can be bypassed.
+    if (data.type === "image") {
+      const { verifyImageBase64 } = await import("@/lib/security/magicBytes.server");
+      const check = verifyImageBase64(data.content, data.mimeType);
+      if (!check.ok) fail("API_ERROR", check.error ?? "Invalid image upload.");
+    }
+
+
+
     const userMessage =
       data.type === "text"
         ? { role: "user" as const, content: data.content }

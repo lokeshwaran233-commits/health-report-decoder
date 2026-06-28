@@ -171,71 +171,23 @@ export const verifyPayment = createServerFn({ method: "POST" })
 
 // ─────────────────────────────────────────────────────────────
 // Shared fulfillment — called by verifyPayment AND the webhook.
-// Idempotent: safe to call multiple times for the same order.
+// Atomic + idempotent: a single SQL transaction flips the order
+// from 'created' -> 'paid' and grants credits / subscription. Only
+// the caller that successfully flips the status performs the grant,
+// so concurrent webhook + client-verify calls can never double-credit.
 // ─────────────────────────────────────────────────────────────
 export async function fulfillOrder(orderRowId: string, razorpayPaymentId?: string) {
-  const { data: order, error } = await supabaseAdmin
-    .from("payment_orders")
-    .select("*")
-    .eq("id", orderRowId)
-    .maybeSingle();
+  const { data, error } = await supabaseAdmin.rpc("fulfill_order_atomic", {
+    p_order_id: orderRowId,
+    p_razorpay_payment_id: razorpayPaymentId ?? null,
+  });
   if (error) throw new Error(error.message);
-  if (!order) throw new Error("Order row not found.");
-  if (order.status === "paid") return; // already fulfilled
 
-  if (order.kind === "credit_pack") {
-    const { data: pack, error: pErr } = await supabaseAdmin
-      .from("credit_packs")
-      .select("credits")
-      .eq("code", order.item_code)
-      .maybeSingle();
-    if (pErr) throw new Error(pErr.message);
-    if (!pack) throw new Error("Credit pack vanished.");
-
-    // Add credits atomically by reading current balance, then updating with concurrency-safe filter.
-    const { data: ent, error: eErr } = await supabaseAdmin
-      .from("user_entitlements")
-      .select("credit_balance")
-      .eq("user_id", order.user_id)
-      .maybeSingle();
-    if (eErr) throw new Error(eErr.message);
-
-    if (!ent) {
-      await supabaseAdmin
-        .from("user_entitlements")
-        .insert({ user_id: order.user_id, plan_code: "free", credit_balance: pack.credits });
-    } else {
-      await supabaseAdmin
-        .from("user_entitlements")
-        .update({ credit_balance: ent.credit_balance + pack.credits })
-        .eq("user_id", order.user_id);
-    }
-  } else if (order.kind === "subscription") {
-    const now = new Date();
-    const renews = new Date(now);
-    renews.setMonth(renews.getMonth() + 1);
-    await supabaseAdmin
-      .from("user_entitlements")
-      .upsert(
-        {
-          user_id: order.user_id,
-          plan_code: order.item_code,
-          plan_started_at: now.toISOString(),
-          plan_renews_at: renews.toISOString(),
-          plan_status: "active",
-          period_started_at: now.toISOString(),
-          reports_used_this_period: 0,
-        },
-        { onConflict: "user_id" },
-      );
+  // data is an array of rows; first row carries `fulfilled` flag.
+  const row = Array.isArray(data) ? data[0] : data;
+  if (!row || row.fulfilled !== true) {
+    // Already fulfilled by another caller — safe no-op.
+    return;
   }
-
-  await supabaseAdmin
-    .from("payment_orders")
-    .update({
-      status: "paid",
-      fulfilled_at: new Date().toISOString(),
-      ...(razorpayPaymentId ? { razorpay_payment_id: razorpayPaymentId } : {}),
-    })
-    .eq("id", orderRowId);
 }
+

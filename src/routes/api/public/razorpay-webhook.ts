@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import "@tanstack/start-client-core";
+import type {} from "@tanstack/start-client-core";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { verifyWebhookSignature } from "@/lib/billing/razorpay.server";
 import { fulfillOrder } from "@/lib/billing/billing.functions";

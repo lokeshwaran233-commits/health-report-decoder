@@ -8,6 +8,22 @@ function statusLabel(s: string): string {
   return "NORMAL";
 }
 
+/**
+ * Escape any string before interpolating into an HTML template.
+ * Required because AI-extracted fields (patient name, biomarker text,
+ * summary, doctor questions) can contain attacker-controlled markup
+ * lifted from a malicious source document.
+ */
+function esc(value: unknown): string {
+  if (value === null || value === undefined) return "";
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 function buildHtml(result: AnalysisResult): string {
   const md = result.metadata;
   const counts = result.biomarkers.reduce(
@@ -22,27 +38,27 @@ function buildHtml(result: AnalysisResult): string {
     .map(
       (b) => `
       <div style="margin: 10px 0; padding-bottom: 8px; border-bottom: 1px solid #ddd;">
-        <div style="font-weight: 600;">${b.name} — ${b.value} ${b.unit} <span style="font-weight: 400; color: #555;">(${statusLabel(b.status)}, ref ${b.referenceRange.low}–${b.referenceRange.high})</span></div>
-        <div style="font-size: 12px; color: #333;">${b.plainEnglish}</div>
+        <div style="font-weight: 600;">${esc(b.name)} — ${esc(b.value)} ${esc(b.unit)} <span style="font-weight: 400; color: #555;">(${statusLabel(b.status)}, ref ${esc(b.referenceRange.low)}–${esc(b.referenceRange.high)})</span></div>
+        <div style="font-size: 12px; color: #333;">${esc(b.plainEnglish)}</div>
       </div>`,
     )
     .join("");
 
   const paragraphs = result.summary
     .split(/\n\n+/)
-    .map((p) => `<p style="margin: 8px 0;">${p}</p>`)
+    .map((p) => `<p style="margin: 8px 0;">${esc(p)}</p>`)
     .join("");
 
   const questions = result.doctorQuestions
-    .map((q, i) => `<li style="margin: 6px 0;">${i + 1}. ${q}</li>`)
+    .map((q, i) => `<li style="margin: 6px 0;">${i + 1}. ${esc(q)}</li>`)
     .join("");
 
   return `
     <h1 style="margin: 0 0 4px 0;">ReportRx — Lab Report Analysis</h1>
     <div style="font-size: 12px; color: #555; margin-bottom: 16px;">
-      ${md.patientName ? `Patient: ${md.patientName} · ` : ""}
-      ${md.reportDate ? `Date: ${md.reportDate} · ` : ""}
-      ${md.labName ?? ""}
+      ${md.patientName ? `Patient: ${esc(md.patientName)} · ` : ""}
+      ${md.reportDate ? `Date: ${esc(md.reportDate)} · ` : ""}
+      ${esc(md.labName ?? "")}
     </div>
     <div style="font-size: 13px; margin-bottom: 12px;">
       ${counts.normal} normal · ${counts.watch} to watch · ${counts.flagged} flagged

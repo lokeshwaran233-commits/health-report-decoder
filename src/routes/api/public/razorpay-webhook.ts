@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import "@tanstack/start-client-core";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { verifyWebhookSignature } from "@/lib/billing/razorpay.server";
 import { fulfillOrder } from "@/lib/billing/billing.functions";
@@ -10,7 +11,7 @@ import { fulfillOrder } from "@/lib/billing/billing.functions";
 export const Route = createFileRoute("/api/public/razorpay-webhook")({
   server: {
     handlers: {
-      POST: async ({ request }) => {
+      POST: async ({ request }: { request: Request }) => {
         const signature = request.headers.get("x-razorpay-signature");
         const rawBody = await request.text();
 

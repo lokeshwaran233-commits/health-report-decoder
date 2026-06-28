@@ -722,6 +722,15 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      fulfill_order_atomic: {
+        Args: { p_order_id: string; p_razorpay_payment_id?: string }
+        Returns: {
+          fulfilled: boolean
+          item_code: string
+          kind: string
+          user_id: string
+        }[]
+      }
       match_zeno_knowledge: {
         Args: { match_count?: number; query_embedding: string }
         Returns: {

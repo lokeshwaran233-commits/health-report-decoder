@@ -179,7 +179,7 @@ export const verifyPayment = createServerFn({ method: "POST" })
 export async function fulfillOrder(orderRowId: string, razorpayPaymentId?: string) {
   const { data, error } = await supabaseAdmin.rpc("fulfill_order_atomic", {
     p_order_id: orderRowId,
-    p_razorpay_payment_id: razorpayPaymentId ?? null,
+    ...(razorpayPaymentId ? { p_razorpay_payment_id: razorpayPaymentId } : {}),
   });
   if (error) throw new Error(error.message);
 

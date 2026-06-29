@@ -253,6 +253,134 @@ export const analyzeScan = createServerFn({ method: "POST" })
       );
     }
 
+    // ── 12-PHASE IMAGING SAFETY PIPELINE (image modalities only) ────────────
+    // Drives the user-facing verdict: defer on poor quality / anatomy mismatch /
+    // safety blocks (STEMI, PE-without-contrast, ADC-dependency, etc.), strip
+    // overreach flagged by the critic, and attach caveats.
+    if (data.type === "scan_image") {
+      try {
+        const { runImagingSafetyPipeline } = await import(
+          "@/lib/imagingSafety/pipeline"
+        );
+        const sigMap: Record<
+          string,
+          "normal_variant" | "incidental" | "abnormal" | "critical"
+        > = {
+          normal_variant: "normal_variant",
+          incidental: "incidental",
+          abnormal: "abnormal",
+          critical: "critical",
+        };
+        const rawObservations = {
+          findings: result.professional.findings.map((f) => ({
+            label: f.description?.slice(0, 80) || f.location || "finding",
+            description: f.characterisation || f.description || "",
+            significance: sigMap[f.significance] ?? "abnormal",
+            confidence: "MODERATE" as const,
+            evidence: f.location
+              ? [{ locator: f.location, description: f.description || "" }]
+              : [],
+          })),
+          detectedRegion: data.bodyRegion,
+          qualityHints: [
+            result.imageQualityNote,
+            ...result.cannotAssess,
+          ].filter((s): s is string => Boolean(s && s.trim())),
+        };
+
+        const safety = runImagingSafetyPipeline(
+          {
+            modality: data.modality,
+            bodyRegion: data.bodyRegion,
+            imageBase64: data.content,
+            mimeType: data.mimeType,
+            rawObservations,
+            language: data.language,
+          },
+          { modelChain: [model], promptText: systemPrompt },
+        );
+
+        if (safety.decision === "defer") {
+          const reason = safety.deferrals[0];
+          const code =
+            reason?.code === "image_quality" ||
+            reason?.code === "input_rejected"
+              ? "INADEQUATE_IMAGE"
+              : "NO_DATA_FOUND";
+          try {
+            const { supabaseAdmin: admin } = await import(
+              "@/integrations/supabase/client.server"
+            );
+            await admin.from("guard_violations_log").insert({
+              violation_text: `imaging-safety:${safety.audit.pipelineVersion}:defer:${reason?.code ?? "unknown"}`,
+              severity: "block",
+              engine_version: safety.audit.pipelineVersion,
+            });
+          } catch {
+            /* non-blocking */
+          }
+          fail(
+            code,
+            reason?.message ||
+              "This scan could not be safely interpreted. Please have a clinician review it directly.",
+          );
+        }
+
+        // release / release_with_caveat — apply critic removals + caveats.
+        const removedIds = new Set(safety.phases.critic.removedFindingIds);
+        if (removedIds.size) {
+          result.professional.findings = result.professional.findings.filter(
+            (_, i) => !removedIds.has(`f${i + 1}`),
+          );
+        }
+
+        const blockSafetyMsgs = safety.phases.safety
+          .filter((h) => h.severity === "block")
+          .map((h) => h.message);
+        const warnSafetyMsgs = safety.phases.safety
+          .filter((h) => h.severity === "warn")
+          .map((h) => h.message);
+
+        if (blockSafetyMsgs.length) {
+          result.criticalAlerts = Array.from(
+            new Set([...result.criticalAlerts, ...blockSafetyMsgs]),
+          );
+        }
+        if (
+          warnSafetyMsgs.length ||
+          safety.decision === "release_with_caveat"
+        ) {
+          result.professional.limitations = [
+            ...result.professional.limitations,
+            ...warnSafetyMsgs,
+            ...blockSafetyMsgs,
+          ];
+          const caveatPrefix =
+            safety.decision === "release_with_caveat"
+              ? "Released with caveat — clinician review recommended. "
+              : "";
+          result.aiConfidenceNote =
+            `${caveatPrefix}${result.aiConfidenceNote ?? ""}`.trim();
+        }
+        if (safety.clinicianBrief) {
+          result.professional.impression = [
+            result.professional.impression,
+            "",
+            safety.clinicianBrief,
+          ]
+            .filter(Boolean)
+            .join("\n");
+        }
+        if (safety.patientSummary && safety.decision !== "release") {
+          result.layman.whatThisMeans =
+            `${safety.patientSummary}\n\n${result.layman.whatThisMeans ?? ""}`.trim();
+        }
+      } catch (err) {
+        if (err && typeof err === "object" && "code" in err) throw err;
+        console.error("[analyzeScan] imaging safety pipeline error:", err);
+      }
+    }
+
     // BLOCKING safety pass on patient-facing layman text — same hallucination
     // guard the lab-report path uses. Strips definitive-diagnosis verbs,
     // drug-dose recommendations, and prohibited phrases.

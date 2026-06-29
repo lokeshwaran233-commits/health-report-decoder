@@ -21,6 +21,19 @@ export function SplashIntro() {
     }
   }, []);
 
+  // Measure where the placeholder sits so the fixed-position logo overlays it.
+  useEffect(() => {
+    if (!visible) return;
+    const measure = () => {
+      if (!logoRef.current) return;
+      const r = logoRef.current.getBoundingClientRect();
+      setOriginRect({ top: r.top, left: r.left, size: r.width });
+    };
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, [visible]);
+
   const dismiss = useCallback(() => {
     if (exiting) return;
     try {

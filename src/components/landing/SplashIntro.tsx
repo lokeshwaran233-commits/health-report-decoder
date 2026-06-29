@@ -218,8 +218,7 @@ export function SplashIntro() {
               >
                 log in
               </a>
-              {" — or try it free
-              first"}
+              {" — or try it free first"}
             </motion.p>
           </motion.div>
 

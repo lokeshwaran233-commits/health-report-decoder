@@ -17,6 +17,7 @@ function Logo() {
       aria-label="ReportRx home"
     >
       <svg
+        id="rrx-nav-logo"
         width="28"
         height="28"
         viewBox="0 0 28 28"

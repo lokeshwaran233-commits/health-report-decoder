@@ -195,6 +195,31 @@ export function SplashIntro() {
               <span className="rrx-enter-dot" />
               Press to enter
             </motion.button>
+
+            <motion.p
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 1.6, duration: 0.6 }}
+              className="mt-5 text-[11px] sm:text-xs tracking-wide text-white/40"
+            >
+              New here?{" "}
+              <a
+                href="/auth?mode=signup"
+                className="underline underline-offset-2 text-brand-teal/70 hover:text-brand-teal transition-colors"
+                onClick={(e) => e.stopPropagation()}
+              >
+                Sign up
+              </a>{" "}
+              or{" "}
+              <a
+                href="/auth?mode=signin"
+                className="underline underline-offset-2 text-brand-teal/70 hover:text-brand-teal transition-colors"
+                onClick={(e) => e.stopPropagation()}
+              >
+                log in
+              </a>
+              {" — or try it free first"}
+            </motion.p>
           </motion.div>
 
           {/* Flying logo — fixed positioned overlay that travels to navbar */}

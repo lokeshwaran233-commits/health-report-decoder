@@ -6,6 +6,7 @@ import { HowItWorksFlow } from "@/components/landing/HowItWorksFlow";
 import { ResultsTeaser } from "@/components/landing/ResultsTeaser";
 import { ScrollReveal } from "@/components/landing/ScrollReveal";
 import { GuideButton } from "@/components/landing/GuideButton";
+import { SplashIntro } from "@/components/landing/SplashIntro";
 
 function Hero() {
   return (

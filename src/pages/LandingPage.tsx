@@ -107,6 +107,7 @@ function B2BTeaser() {
 export function LandingPage() {
   return (
     <>
+      <SplashIntro />
       <Hero />
       <div className="px-4 pb-4">
         <UploadCard />

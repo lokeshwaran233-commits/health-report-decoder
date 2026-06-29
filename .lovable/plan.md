@@ -1,42 +1,45 @@
-# Fix: Production scans bypass the 12-phase safety pipeline
+# Splash Intro Overlay
 
-## Problem
+A full-screen "enter the experience" cover that appears on first visit to the landing page (`/`), with a giant "ReportRx" wordmark, the logo below it pulsing with a radium glow, and a press-to-enter interaction.
 
-`/scan` (production) calls `analyzeScan` in `src/lib/scanAnalysis.functions.ts`. It runs the vision model, normalizes the JSON, then only applies `runHallucinationGuard` from `src/lib/clinicalEngine/hallucinationGuard.ts` — a regex/keyword scrub. The full 12-phase pipeline in `src/lib/imagingSafety/pipeline.ts` (`runImagingSafetyPipeline`) exists but is only wired into `analyzeScanSafe` used by `/scan-v2`. Result: hard safety rules (STEMI block, PE-without-contrast block, ADC-dependency, anatomy mismatch, critic overreach removal, quality deferral, evidence grounding) never run in production.
+## Behavior
 
-## Fix
+- Shows only on route `/` (landing). Does not appear on `/auth`, `/results`, `/scan`, etc.
+- Appears on direct link entry (first paint). Dismissed by clicking the logo (or pressing Enter / Space / anywhere on the cover).
+- After dismissal, persists in `sessionStorage` (`rrx-splash-seen`) so navigating away and back in the same session won't re-trigger it. Fresh tab / new session shows it again.
+- Honors `prefers-reduced-motion`: glow becomes a static soft halo, no pulsing.
+- Locks body scroll while visible; fully accessible (focus trap on the enter button, ESC also dismisses, `aria-label="Enter ReportRx"`).
+- Fades out (~600ms) with a subtle scale, then unmounts so it never affects interaction afterward.
 
-Make `analyzeScan` invoke `runImagingSafetyPipeline` on every scan and let its `decision` / calibrated findings drive what the user sees. Keep the existing UI contract (`ScanInterpretationResult`) so `/scan` and `scan-results` keep working — no client changes required.
+## Visual Direction ("meta-level patient care")
 
-## Steps
+- Deep medical-night background: layered radial gradients (teal #0f6e56 → midnight #05080d) with slow-drifting blurred blobs (reuse `rrx-blob` keyframes already in `styles.css`).
+- Ambient particle/constellation layer: ~40 faint dots, slow parallax drift — evokes a calm monitoring room.
+- Faint animated ECG line crossing horizontally behind the wordmark (SVG stroke-dashoffset loop, very low opacity) — signature "patient care" motif without being literal.
+- Wordmark "ReportRx": Fraunces serif, ~clamp(64px, 14vw, 200px), letter-spaced, white with a soft teal text-shadow, staggered letter fade-in.
+- Logo below: large (~clamp(120px, 20vw, 220px)) ReportRx mark inside a circular emblem, with a **radium glow** — layered box-shadows in brand teal (#2dd4a8) pulsing opacity + spread from 20px → 60px on a 2.2s ease-in-out loop. A second outer halo ring expands and fades (ripple) every cycle.
+- Below the logo: small tagline "Your lab report, finally explained." and a glowing "Press to enter" pill button that breathes in sync with the logo.
+- Bottom edge: micro-strip with "Private · Secure · Doctor-ready" trust line in muted text.
 
-1. **`src/lib/scanAnalysis.functions.ts`** — after `normaliseScanResult`, before the hallucination guard:
-   - Build `SafetyPipelineInput` from the parsed result: map `professional.findings` → `rawObservations.findings` (location → locator, description, significance, confidence from `aiConfidenceNote` band or default `MODERATE`); include `qualityHints` derived from `imageQualityNote` + `cannotAssess`; pass `modality`, `bodyRegion`, `imageBase64`, `mimeType`, `language`.
-   - Call `runImagingSafetyPipeline(input, { modelChain: [model], promptText: systemPrompt })`.
-   - Apply the verdict:
-     - `decision === "defer"` with code `image_quality` / `input_rejected` → `fail("INADEQUATE_IMAGE", deferral.message)`.
-     - `decision === "defer"` with `no_grounded_findings` / `critic_blocked` / `safety_block` → `fail("NO_DATA_FOUND", deferral.message)`.
-     - `decision === "release_with_caveat"` → keep result, prepend caveat to `aiConfidenceNote`, merge `phases.safety` block/warn messages into `professional.limitations`, and add `phases.critic.removedFindingIds` removals by dropping matching items from `professional.findings` and `layman.keyFindings`.
-   - Replace `layman.summary` / `layman.whatThisMeans` with `patientSummary` when the pipeline produced one; append `clinicianBrief` to `professional.impression` if non-empty.
-   - Upgrade `result.criticalAlerts` with any `phases.safety` hits whose severity is `block`.
+## Files
 
-2. **Confidence mapping helper (inline)** — convert `professional` findings' confidence text to `HIGH|MODERATE|LOW|INSUFFICIENT` so the pipeline's evidence grounding + critic phases work; treat findings with no `location` as evidence-less (forces critic to flag).
+**New**
+- `src/components/landing/SplashIntro.tsx` — the overlay component. Self-contained: portal-free fixed overlay, framer-motion fade, click/key handlers, sessionStorage gate, reduced-motion guard.
 
-3. **Keep `runHallucinationGuard`** as the final string-level scrub after the pipeline (defense in depth).
+**Edited**
+- `src/pages/LandingPage.tsx` — mount `<SplashIntro />` at the top of the landing page only.
+- `src/styles.css` — add `@keyframes rrx-radium-pulse`, `rrx-radium-ripple`, `rrx-ecg-sweep`, and `.rrx-splash-*` helper classes (background gradient, glow shadow stack). Keep all keyframes alongside existing `rrx-blob` / `rrx-pulse` rules; respect existing `prefers-reduced-motion` block by extending it.
 
-4. **Audit** — pass the existing `guardAndAudit` call unchanged. Additionally, persist the pipeline's `audit` entry to `guard_violations_log` with severity `block` when decision is `defer` or any `safety` hit is `block` (mirrors what `analyzeScanSafe` already does).
+## Technical notes
 
-5. **No schema / UI changes** — `ScanInterpretationResult` shape is preserved; existing `scan-results.tsx` continues to render. `/scan-v2` and `analyzeScanSafe` stay as-is.
-
-## Verification
-
-- Build passes (route compiles, no new deps).
-- Re-run `/scan` with a small/blurry test image → expect `INADEQUATE_IMAGE` from phase 2.
-- Re-run with a CT PE prompt without contrast in `extra` → expect `release_with_caveat` and PE caveat surfaced in `aiConfidenceNote` / `limitations`.
-- Existing happy-path scan still returns a normalised result with the same fields the UI reads.
+- Use existing `framer-motion` (already a dep) for the exit fade.
+- Glow uses stacked `box-shadow` + `filter: drop-shadow` on the logo `<img>` for true "radium" bloom; pure CSS, no JS animation loop.
+- Z-index: `z-[100]` so it sits above Navbar (which is `z-50`).
+- No backend, no new dependencies, no routing changes. Strictly presentational on `/`.
+- Does not affect SEO: rendered client-side after hydration; SSR HTML still contains full landing markup underneath.
 
 ## Out of scope
 
-- UI work to render the full 12-phase report on `/scan` (already available on `/scan-v2`).
-- Changing `analyzeScanSafe` or `/scan-v2`.
-- Lab report pipeline.
+- Not added to other routes.
+- No audio/sound.
+- No "skip intro" preference UI in Settings (sessionStorage gate is enough for now).

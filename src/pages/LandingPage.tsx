@@ -6,6 +6,7 @@ import { HowItWorksFlow } from "@/components/landing/HowItWorksFlow";
 import { ResultsTeaser } from "@/components/landing/ResultsTeaser";
 import { ScrollReveal } from "@/components/landing/ScrollReveal";
 import { GuideButton } from "@/components/landing/GuideButton";
+import { SplashIntro } from "@/components/landing/SplashIntro";
 
 function Hero() {
   return (
@@ -106,6 +107,7 @@ function B2BTeaser() {
 export function LandingPage() {
   return (
     <>
+      <SplashIntro />
       <Hero />
       <div className="px-4 pb-4">
         <UploadCard />

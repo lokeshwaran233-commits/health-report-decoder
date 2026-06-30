@@ -127,6 +127,7 @@ function fileToBase64(file: File): Promise<{ b64: string; mime: string }> {
 function ScanPage() {
   const navigate = useNavigate();
   const analyze = useServerFn(analyzeScan);
+  const saveScanFn = useServerFn(saveScan);
   const { user } = useAuth();
 
   const [consent, setConsent] = useState<boolean>(() => {

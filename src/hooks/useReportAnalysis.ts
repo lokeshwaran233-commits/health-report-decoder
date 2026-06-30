@@ -41,7 +41,7 @@ const STATUS_ORDER: Record<Biomarker["status"], number> = {
 export function useReportAnalysis(): UseReportAnalysisReturn {
   const analyzeFn = useServerFn(analyzeReport);
   const saveReportFn = useServerFn(saveReport);
-  const { user } = useAuth();
+  
   const { i18n } = useTranslation();
   const [analysisResult, setResult] = useState<AnalysisResult | null>(null);
   const [analysisState, setState] = useState<AnalysisState>("idle");

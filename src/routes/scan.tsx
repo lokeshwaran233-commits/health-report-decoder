@@ -266,8 +266,17 @@ function ScanPage() {
         return;
       }
 
-      // History saving is paused — keep the result in memory only.
       scanStore.setLastResult(result);
+      // Persist to history for signed-in users only.
+      if (user) {
+        try {
+          const saved = await saveScanFn({ data: { result } });
+          void navigate({ to: "/scan-results", search: { id: saved.id } });
+          return;
+        } catch (err) {
+          console.error("[saveScan] failed", err);
+        }
+      }
       void navigate({ to: "/scan-results", search: {} });
     } catch (e) {
       const raw = e instanceof Error ? e.message : "Something went wrong.";

@@ -108,7 +108,7 @@ function HealthStoryPage() {
     return () => {
       cancelled = true;
     };
-  }, [listFn]);
+  }, [listFn, refreshTick]);
 
   const oneThatMatters = useMemo(
     () =>

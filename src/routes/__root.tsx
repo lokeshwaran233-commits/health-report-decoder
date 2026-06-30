@@ -93,7 +93,7 @@ const THEME_INIT_SCRIPT = `(function(){try{var t=localStorage.getItem('reportrx-
 // Pre-paint splash gate: on "/", if splash hasn't been seen this session,
 // mark <html data-splash="pending"> so CSS hides the underlying page until
 // the SplashIntro overlay has mounted. Prevents a flash of the real UI.
-const SPLASH_GATE_SCRIPT = `(function(){try{if(location.pathname==='/' && sessionStorage.getItem('rrx-splash-seen')!=='1'){document.documentElement.setAttribute('data-splash','pending');}}catch(e){}})();`;
+const SPLASH_GATE_SCRIPT = `(function(){try{if(location.pathname==='/' && sessionStorage.getItem('rrx-splash-seen')!=='1'){document.documentElement.setAttribute('data-splash','pending');setTimeout(function(){document.documentElement.removeAttribute('data-splash');},2500);}}catch(e){}})();`;
 
 function RootShell({ children }: { children: React.ReactNode }) {
   return (

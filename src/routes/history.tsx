@@ -61,6 +61,7 @@ function HistoryPage() {
   const [tab, setTab] = useState<Tab>("reports");
   const [localHistory, setLocalHistory] = useState<AnalysisResult[]>([]);
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const listReportsFn = useServerFn(listReports);
   const listScansFn = useServerFn(listScans);
 
@@ -69,6 +70,8 @@ function HistoryPage() {
     queryFn: () => listReportsFn(),
     enabled: !!user,
     retry: false,
+    refetchOnWindowFocus: true,
+    refetchOnMount: "always",
   });
 
   const { data: scansData } = useQuery({
@@ -76,6 +79,8 @@ function HistoryPage() {
     queryFn: () => listScansFn(),
     enabled: !!user,
     retry: false,
+    refetchOnWindowFocus: true,
+    refetchOnMount: "always",
   });
 
   // Sync from cloud data
@@ -90,6 +95,17 @@ function HistoryPage() {
     });
     return unsubscribe;
   }, []);
+
+  // Refetch when another part of the app reports a save (post-analysis).
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const onUpdated = () => {
+      void queryClient.invalidateQueries({ queryKey: ["cloud-reports"] });
+      void queryClient.invalidateQueries({ queryKey: ["cloud-scans"] });
+    };
+    window.addEventListener("reportrx:history-updated", onUpdated);
+    return () => window.removeEventListener("reportrx:history-updated", onUpdated);
+  }, [queryClient]);
 
 
   type RawReport = {

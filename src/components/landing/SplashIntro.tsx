@@ -15,21 +15,29 @@ function readInitialVisible(): boolean {
 }
 
 export function SplashIntro() {
-  const [visible, setVisible] = useState<boolean>(readInitialVisible);
+  // Start "init" so SSR + first client render match (render nothing). The
+  // pre-paint <html data-splash="pending"> gate keeps the page hidden until
+  // useLayoutEffect runs below — at which point we either show the splash
+  // overlay or reveal the page.
+  const [visible, setVisible] = useState<boolean>(false);
   const [exiting, setExiting] = useState(false);
   const [target, setTarget] = useState<TargetRect | null>(null);
   const logoRef = useRef<HTMLDivElement | null>(null);
   const [originRect, setOriginRect] = useState<TargetRect | null>(null);
   const removeTimer = useRef<number | null>(null);
 
-  // Clear the pre-paint gate as soon as splash is in the DOM. If splash is
-  // not visible (already seen this session), still clear it so the page
-  // shows immediately.
   useLayoutEffect(() => {
-    if (typeof document !== "undefined") {
-      document.documentElement.removeAttribute("data-splash");
-    }
+    let needsSplash = true;
+    try {
+      needsSplash = sessionStorage.getItem(STORAGE_KEY) !== "1";
+    } catch {}
+    if (needsSplash) setVisible(true);
+    // Reveal the underlying page. If splash is showing, it overlays at z-100;
+    // if not, the page becomes visible immediately.
+    document.documentElement.removeAttribute("data-splash");
   }, []);
+
+
 
 
   // Measure where the placeholder sits so the fixed-position logo overlays it.

@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { analyzeReport } from "@/lib/analyze.functions";
 import { saveReport } from "@/lib/cloudSync.functions";
 import { uploadStore } from "@/lib/uploadStore";
-import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 
 
 import type {
@@ -41,7 +41,7 @@ const STATUS_ORDER: Record<Biomarker["status"], number> = {
 export function useReportAnalysis(): UseReportAnalysisReturn {
   const analyzeFn = useServerFn(analyzeReport);
   const saveReportFn = useServerFn(saveReport);
-  const { user } = useAuth();
+  
   const { i18n } = useTranslation();
   const [analysisResult, setResult] = useState<AnalysisResult | null>(null);
   const [analysisState, setState] = useState<AnalysisState>("idle");
@@ -69,13 +69,20 @@ export function useReportAnalysis(): UseReportAnalysisReturn {
         const isSample = uploadStore.isSampleMode() || uploadStore.isHistoryView();
         if (!isSample) {
           toast.success("Analysis ready");
-          // Persist to the signed-in user's cloud history only.
-          if (user) {
-            try {
-              await saveReportFn({ data: { result } });
-            } catch (err) {
-              console.error("[saveReport] failed", err);
+          // Persist to cloud history if signed in. Check session synchronously
+          // from Supabase (not from useAuth state which may still be loading
+          // when runAnalysis fires from a route effect).
+          try {
+            const { data: sessionData } = await supabase.auth.getSession();
+            if (sessionData.session?.user) {
+              try {
+                await saveReportFn({ data: { result } });
+              } catch (err) {
+                console.error("[saveReport] failed", err);
+              }
             }
+          } catch (err) {
+            console.error("[saveReport] session check failed", err);
           }
         }
       } catch (e) {
@@ -92,7 +99,7 @@ export function useReportAnalysis(): UseReportAnalysisReturn {
         setState("error");
       }
     },
-    [analyzeFn, saveReportFn, user, i18n.language],
+    [analyzeFn, saveReportFn, i18n.language],
   );
 
   const loadResult = useCallback((result: AnalysisResult) => {

@@ -38,6 +38,14 @@ function HealthStoryPage() {
   const [selected, setSelected] = useState<BiomarkerTrend | null>(null);
   const [showWrapped, setShowWrapped] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [refreshTick, setRefreshTick] = useState(0);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const onUpdated = () => setRefreshTick((n) => n + 1);
+    window.addEventListener("reportrx:history-updated", onUpdated);
+    return () => window.removeEventListener("reportrx:history-updated", onUpdated);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;

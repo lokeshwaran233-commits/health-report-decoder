@@ -268,14 +268,26 @@ function ScanPage() {
 
       scanStore.setLastResult(result);
       // Persist to history for signed-in users only.
-      if (user) {
-        try {
-          const saved = await saveScanFn({ data: { result } });
-          void navigate({ to: "/scan-results", search: { id: saved.id } });
-          return;
-        } catch (err) {
-          console.error("[saveScan] failed", err);
+      // Check session synchronously from Supabase — `user` from useAuth may
+      // still be loading on first navigation and would skip the save.
+      try {
+        const { supabase } = await import("@/integrations/supabase/client");
+        const { data: sessionData } = await supabase.auth.getSession();
+        if (sessionData.session?.user) {
+          try {
+            const saved = await saveScanFn({ data: { result } });
+            if (typeof window !== "undefined") {
+              window.dispatchEvent(new CustomEvent("reportrx:history-updated"));
+            }
+            void navigate({ to: "/scan-results", search: { id: saved.id } });
+            return;
+          } catch (err) {
+            console.error("[saveScan] failed", err);
+            toast.error("We couldn't save this scan to your history. Showing results anyway.");
+          }
         }
+      } catch (err) {
+        console.error("[saveScan] session check failed", err);
       }
       void navigate({ to: "/scan-results", search: {} });
     } catch (e) {

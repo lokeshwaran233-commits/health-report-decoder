@@ -1,7 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import type { AnalysisResult } from "@/types/report";
 
 const analysisResultSchema = z.object({
@@ -141,6 +140,7 @@ export const saveReport = createServerFn({ method: "POST" })
     try {
       const violations = engine?.guardViolations ?? [];
       if (violations.length > 0) {
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
         await supabaseAdmin.from("guard_violations_log").insert(
           violations.map((v) => ({
             report_id: row.id,
@@ -219,6 +219,7 @@ export const createShareToken = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const token = generateToken();
     const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
     const { error } = await supabaseAdmin.from("share_tokens").insert({

@@ -142,7 +142,7 @@ function HistoryPage() {
         <h1 className="text-[24px] font-semibold text-brand-dark">Your history</h1>
         <p className="mt-1 flex items-center gap-1.5 text-[13px] text-brand-muted">
           <Lock className="h-3.5 w-3.5" aria-hidden="true" />
-          History saving is paused — new analyses won't be stored here.
+          Signed-in reports and scans are saved here automatically. Guest sessions are never stored.
         </p>
       </div>
 

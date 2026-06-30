@@ -77,8 +77,16 @@ export function useReportAnalysis(): UseReportAnalysisReturn {
             if (sessionData.session?.user) {
               try {
                 await saveReportFn({ data: { result } });
+                if (typeof window !== "undefined") {
+                  window.dispatchEvent(
+                    new CustomEvent("reportrx:history-updated"),
+                  );
+                }
               } catch (err) {
                 console.error("[saveReport] failed", err);
+                toast.error(
+                  "We couldn't save this report to your history. Showing results anyway.",
+                );
               }
             }
           } catch (err) {

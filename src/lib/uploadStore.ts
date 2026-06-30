@@ -99,19 +99,8 @@ export const uploadStore = {
   },
 
   setLastResult(result: AnalysisResult): void {
-    const wasSample = state.sampleMode || state.historyView;
+    // History saving is disabled — keep result in memory only so results screen renders.
     state = { ...state, lastResult: result };
-    if (wasSample) return;
-    try {
-      if (typeof window === "undefined") return;
-      const existing = uploadStore.getHistory();
-      const filtered = existing.filter((r) => r.id !== result.id);
-      const next = [result, ...filtered].slice(0, MAX_HISTORY);
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-      uploadStore._notify();
-    } catch {
-      // ignore quota / privacy errors
-    }
   },
   getLastResult(): AnalysisResult | null {
     return state.lastResult;

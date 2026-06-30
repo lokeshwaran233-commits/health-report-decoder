@@ -90,12 +90,18 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
 const THEME_INIT_SCRIPT = `(function(){try{var t=localStorage.getItem('reportrx-theme');var d=t==='dark'||((t===null||t==='system')&&window.matchMedia('(prefers-color-scheme: dark)').matches);if(d){document.documentElement.classList.add('dark');}document.documentElement.style.colorScheme=d?'dark':'light';}catch(e){}})();`;
 
+// Pre-paint splash gate: on "/", if splash hasn't been seen this session,
+// mark <html data-splash="pending"> so CSS hides the underlying page until
+// the SplashIntro overlay has mounted. Prevents a flash of the real UI.
+const SPLASH_GATE_SCRIPT = `(function(){try{if(location.pathname==='/' && sessionStorage.getItem('rrx-splash-seen')!=='1'){document.documentElement.setAttribute('data-splash','pending');setTimeout(function(){document.documentElement.removeAttribute('data-splash');},2500);}}catch(e){}})();`;
+
 function RootShell({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
       <head>
         <HeadContent />
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+        <script dangerouslySetInnerHTML={{ __html: SPLASH_GATE_SCRIPT }} />
       </head>
       <body>
         {children}

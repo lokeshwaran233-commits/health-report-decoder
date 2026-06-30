@@ -1,52 +1,32 @@
+## Goal
+Eliminate the flash of the real landing page before the splash overlay appears on first load, and keep the press-to-enter transition smooth.
 
-## Goals
+## Root cause
+`SplashIntro` is a child of `LandingPage`, and `visible` starts as `false`. The landing page renders first, then a `useEffect` reads `sessionStorage` and flips `visible` to `true` — so users see a one-frame flicker of the real product before the overlay mounts.
 
-1. Signed-in users get unlimited access (reports, scans, Zeno) — remove all quota gates.
-2. Anonymous lab-report flow keeps the existing 3-try cap (already in place).
-3. Nothing gets stored in history anymore — neither localStorage nor cloud — for any user, signed-in or not. The dashboard/results screen still renders the output; the history tab just stays empty for new analyses.
-4. Mobile light/dark toggle becomes reliably functional.
+## Fix
 
-## Changes
+**1. Pre-paint gate (no flicker on link open)**
+- In `src/routes/__root.tsx`, add a tiny inline script (runs before hydration, alongside the existing theme pre-paint) that checks `sessionStorage["rrx-splash-seen"]` on path `/` and, if unseen, sets `document.documentElement.dataset.splash = "pending"` and injects a style rule hiding `#app-root` (or `body > #root main`) until splash mounts. This guarantees the real UI never paints first.
+- Add a matching CSS rule in `src/styles.css`: `html[data-splash="pending"] #root > *:not(.rrx-splash-bg) { visibility: hidden; }` (scoped so only the landing content is hidden, splash itself remains visible).
 
-### A. Remove signed-in quota gates
+**2. Synchronous splash decision**
+- In `SplashIntro.tsx`, initialize `visible` synchronously via a lazy `useState` initializer that reads `sessionStorage` (guarded for SSR with `typeof window`). Drop the `useEffect` that sets it.
+- On mount, once splash is rendered, clear `document.documentElement.dataset.splash` so the underlying page becomes visible behind the overlay (it's already covered by the fixed `z-100` layer, so revealing it is safe and lets the exit transition cross-fade naturally).
 
-- `src/lib/analyze.functions.ts`: when `authUserId` is present, skip the `readEntitlements` check and the `recordDecode` call. Keep the anonymous IP-hash 3-report ceiling unchanged.
-- `src/lib/scanAnalysis.functions.ts`: drop the `readEntitlements` block and the `recordDecode` call entirely (scan is auth-only, so signed-in = unlimited).
-- `src/hooks/useEntitlements.ts` → `canDecode`: return `{ allowed: true, reason: "ok" }` whenever an entitlements row exists (any signed-in user). Anonymous (`null`) still returns `no-auth`.
-- `src/routes/results.tsx` / `src/routes/scan.tsx`: leave the existing `QUOTA_EXCEEDED` UI for the anon path; signed-in users will simply never hit it.
+**3. Smoother exit (keeps existing flying-logo animation)**
+- Bump the background fade-out to `duration: 0.9` and the logo flight easing stays `[0.22, 1, 0.36, 1]`.
+- Add a subtle `backdrop-filter: blur()` that eases from `12px → 0` during exit so the real page resolves into focus instead of popping in.
+- Delay clearing `body.overflow` until after the exit timer fires (already in place — keep).
 
-### B. Stop writing anything to history
+**4. SSR safety**
+- The pre-paint script must be wrapped so it no-ops when `sessionStorage` is unavailable.
+- `SplashIntro` lazy initializer falls back to `true` when `window` is undefined so SSR HTML matches the "splash visible" state, preventing a hydration mismatch.
 
-Lab reports:
-- `src/lib/uploadStore.ts` → `setLastResult`: keep the in-memory `state.lastResult` update so the results page still renders, but remove the `localStorage.setItem(STORAGE_KEY, …)` write. Same for `setHistoryView` paths. `getHistory()` will return `[]` for new sessions; we leave the legacy reader so any pre-existing entries still appear if the user previously had any.
-- `src/hooks/useReportAnalysis.ts`: remove the `saveFn({ data: { result: payload } })` cloud-sync call and the "Saved to history" toast. Replace with a neutral success toast ("Analysis ready").
+## Files touched
+- `src/routes/__root.tsx` — add pre-paint splash gate script
+- `src/styles.css` — add `html[data-splash="pending"]` rule + blur transition class
+- `src/components/landing/SplashIntro.tsx` — synchronous initial state, clear gate on mount, smoother exit blur
 
-Scans:
-- `src/routes/scan.tsx` → `handleSubmit`: stop calling `save({ data: { result } })`. Set the result in `scanStore` and navigate to `/scan-results` without an `id` search param.
-- `src/routes/scan-results.tsx`: when no `id` is present and `scanStore.getLastResult()` exists, render from the in-memory store. Drop the "View history" link from the footer of this page.
-- Leave `saveScan`/`saveReport` server functions in place (unused, but kept for future re-enable) — just unwired from the UI.
-
-History page:
-- `src/routes/history.tsx`: keep the page (legacy entries remain viewable), but add a clarifying note at top: "History saving is paused — new analyses won't be stored here." No deletion of existing rows.
-
-### C. Mobile theme toggle fix
-
-Root cause we are addressing: on mobile the toggle button sits inside the animated mobile drawer; clicks are sometimes swallowed when the drawer re-renders, and the `body` background uses `var(--color-brand-surface)` which only swaps when `.dark` is on `<html>`. We will:
-
-- `src/components/theme/ThemeToggle.tsx`: on click, in addition to calling `toggle()`, synchronously toggle `document.documentElement.classList` and set `colorScheme` so the paint flips immediately (no waiting on React effect on slower mobile devices). Also add `onPointerDown`/`onTouchEnd` stop-propagation so the drawer's outside-click handler can't intercept.
-- `src/components/layout/Navbar.tsx`: in the mobile drawer, wrap the `ThemeToggle` in a div with `onClick={(e)=>e.stopPropagation()}` and ensure the drawer is not unmounted by the toggle (it isn't — confirmed). Keep theme toggle visible in the drawer header.
-- `src/components/theme/ThemeProvider.tsx`: also write a `meta[name=theme-color]` value on resolve so the mobile browser chrome (status bar) matches; this is the visible cue users keep saying is "still light/dark".
-- `src/styles.css`: verify `body { background-color: var(--color-brand-surface); }` is correct (it is — the `.dark` block already overrides `--color-brand-surface`). No CSS edit unless verification fails after wiring.
-
-## Verification
-
-1. Build passes (`tsgo`).
-2. Anonymous: 3 lab analyses succeed; 4th returns the existing `QUOTA_EXCEEDED` error. No localStorage `reportrx_history` entries written.
-3. Signed-in: run >3 lab analyses and >3 scans in a row — all succeed, no quota error. No new rows appear in `/history`.
-4. Toggle theme on a 752px viewport (current preview) — `<html>` gains/loses `.dark`, `body` repaints, mobile browser status bar color updates.
-
-## Out of scope (explicit)
-
-- Not deleting existing history rows or localStorage entries (non-destructive).
-- Not touching pricing, Zeno prompts, or splash intro.
-- Not unenrolling `requireSupabaseAuth` from scan — auth is still required to run a scan.
+## Out of scope
+No change to the flying-logo trajectory, wordmark, or copy. Sign-up/log-in subtle link stays.

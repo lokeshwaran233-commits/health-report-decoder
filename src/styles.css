@@ -422,12 +422,27 @@
 .animate-fadeUp { animation: fadeUp 0.4s ease-out both; }
 
 /* ── Splash Intro ─────────────────────────────────────────── */
+/* Pre-paint gate: hide the real page until SplashIntro mounts and clears
+   the attribute. Body gets the splash background so there is no flash of
+   white/light theme before the overlay paints. */
+html[data-splash="pending"] body {
+  background: #05080d !important;
+}
+html[data-splash="pending"] body > *:not(script):not(style) {
+  visibility: hidden !important;
+}
+
 .rrx-splash-bg {
   background:
     radial-gradient(ellipse 900px 700px at 20% 20%, rgba(45, 212, 168, 0.18) 0%, transparent 60%),
     radial-gradient(ellipse 800px 600px at 80% 80%, rgba(0, 102, 255, 0.12) 0%, transparent 60%),
     radial-gradient(ellipse 1200px 800px at 50% 50%, rgba(15, 110, 86, 0.25) 0%, transparent 70%),
     linear-gradient(180deg, #05080d 0%, #07101a 60%, #05080d 100%);
+  backdrop-filter: blur(0px);
+  transition: backdrop-filter 0.9s ease-out;
+}
+.rrx-splash-bg[data-exiting="true"] {
+  backdrop-filter: blur(0px);
 }
 
 .rrx-wordmark {

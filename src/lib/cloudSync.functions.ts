@@ -219,6 +219,7 @@ export const createShareToken = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const token = generateToken();
     const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
     const { error } = await supabaseAdmin.from("share_tokens").insert({

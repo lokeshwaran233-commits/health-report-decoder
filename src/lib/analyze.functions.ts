@@ -245,7 +245,6 @@ export const analyzeReport = createServerFn({ method: "POST" })
     }
 
     let ipHash: string | null = null;
-    let quotaSnapshot: import("@/lib/billing/quota.server").QuotaDecision | null = null;
     if (!authUserId) {
       const ip = getRequestIP({ xForwardedFor: true }) ?? "unknown";
       ipHash = createHash("sha256").update(ip).digest("hex");
@@ -258,21 +257,11 @@ export const analyzeReport = createServerFn({ method: "POST" })
       if (used >= ANON_REPORT_LIMIT) {
         fail(
           "QUOTA_EXCEEDED",
-          `You've used your ${ANON_REPORT_LIMIT} free analyses. Sign in to keep analyzing and save your history.`,
-        );
-      }
-    } else {
-      const { readEntitlements } = await import("@/lib/billing/quota.server");
-      quotaSnapshot = await readEntitlements(supabaseAdmin, authUserId);
-      if (!quotaSnapshot.allowed) {
-        fail(
-          "QUOTA_EXCEEDED",
-          quotaSnapshot.reason === "quota-hit"
-            ? "You've used your free analysis for this period. Upgrade your plan or add credits to continue."
-            : "We couldn't verify your plan. Please refresh and try again.",
+          `You've used your ${ANON_REPORT_LIMIT} free analyses. Sign in to keep analyzing — signed-in users have unlimited access.`,
         );
       }
     }
+    // Signed-in users: unlimited. No quota check, no decode recording.
 
     // Server-side magic-byte sniff — re-verify the image actually matches the
     // declared MIME, since client validation can be bypassed.
@@ -468,11 +457,7 @@ export const analyzeReport = createServerFn({ method: "POST" })
       console.error("[analyzeReport] usage log failed", e);
     }
 
-    // Record paid-tier decode against entitlements (best-effort).
-    if (authUserId && quotaSnapshot) {
-      const { recordDecode } = await import("@/lib/billing/quota.server");
-      await recordDecode(supabaseAdmin, authUserId, quotaSnapshot);
-    }
+    // Signed-in users: unlimited — no entitlement decrement.
 
     // UltraGuard 9-layer audit pass (non-blocking).
     try {

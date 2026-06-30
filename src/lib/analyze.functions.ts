@@ -230,17 +230,31 @@ export const analyzeReport = createServerFn({ method: "POST" })
     }
 
     // Auth: anonymous users get 3 free reports per IP.
-    // Signed-in users are now gated by their entitlement plan + credits.
+    // Signed-in users are unlimited.
+    // IMPORTANT: validate the JWT locally (getClaims) rather than calling
+    // supabaseAdmin.auth.getUser(token) — the latter hits Supabase /user and
+    // returns session_not_found for valid-but-rotated session tokens, which
+    // would incorrectly treat signed-in users as anonymous and trip the
+    // 3-report IP quota.
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     let authUserId: string | null = null;
     try {
       const authHeader = getRequestHeader("authorization");
       if (authHeader?.startsWith("Bearer ")) {
         const token = authHeader.slice(7);
-        const { data: userData } = await supabaseAdmin.auth.getUser(token);
-        authUserId = userData.user?.id ?? null;
+        const { data: claimsData, error: claimsError } =
+          await supabaseAdmin.auth.getClaims(token);
+        if (!claimsError && claimsData?.claims?.sub) {
+          authUserId = claimsData.claims.sub as string;
+        } else {
+          console.warn(
+            "[analyzeReport] bearer token present but claims invalid",
+            claimsError?.message,
+          );
+        }
       }
-    } catch {
+    } catch (e) {
+      console.warn("[analyzeReport] auth validation failed", e);
       authUserId = null;
     }
 

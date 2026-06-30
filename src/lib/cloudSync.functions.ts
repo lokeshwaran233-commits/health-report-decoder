@@ -140,6 +140,7 @@ export const saveReport = createServerFn({ method: "POST" })
     try {
       const violations = engine?.guardViolations ?? [];
       if (violations.length > 0) {
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
         await supabaseAdmin.from("guard_violations_log").insert(
           violations.map((v) => ({
             report_id: row.id,

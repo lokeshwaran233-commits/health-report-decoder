@@ -1,25 +1,36 @@
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback, useRef, useLayoutEffect } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 
 const STORAGE_KEY = "rrx-splash-seen";
 
 type TargetRect = { top: number; left: number; size: number };
 
+function readInitialVisible(): boolean {
+  if (typeof window === "undefined") return true;
+  try {
+    return sessionStorage.getItem(STORAGE_KEY) !== "1";
+  } catch {
+    return true;
+  }
+}
+
 export function SplashIntro() {
-  const [visible, setVisible] = useState(false);
+  const [visible, setVisible] = useState<boolean>(readInitialVisible);
   const [exiting, setExiting] = useState(false);
   const [target, setTarget] = useState<TargetRect | null>(null);
   const logoRef = useRef<HTMLDivElement | null>(null);
   const [originRect, setOriginRect] = useState<TargetRect | null>(null);
   const removeTimer = useRef<number | null>(null);
 
-  useEffect(() => {
-    try {
-      if (sessionStorage.getItem(STORAGE_KEY) !== "1") setVisible(true);
-    } catch {
-      setVisible(true);
+  // Clear the pre-paint gate as soon as splash is in the DOM. If splash is
+  // not visible (already seen this session), still clear it so the page
+  // shows immediately.
+  useLayoutEffect(() => {
+    if (typeof document !== "undefined") {
+      document.documentElement.removeAttribute("data-splash");
     }
   }, []);
+
 
   // Measure where the placeholder sits so the fixed-position logo overlays it.
   useEffect(() => {

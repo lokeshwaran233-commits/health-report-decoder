@@ -410,8 +410,7 @@ export const analyzeScan = createServerFn({ method: "POST" })
       console.error("[analyzeScan] UltraGuard audit skipped:", err);
     }
 
-    // Record decode against entitlements (best-effort).
-    await recordDecode(supabaseAdmin, context.userId, quotaSnapshot);
+    // Signed-in users: unlimited — no entitlement decrement.
 
     return result;
   });

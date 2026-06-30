@@ -102,9 +102,6 @@ function ScanResultsPage() {
         <Link to="/scan">
           <Button variant="secondary" size="md">Analyse another scan</Button>
         </Link>
-        <Link to="/history">
-          <Button variant="ghost" size="md">View history</Button>
-        </Link>
       </div>
     </div>
   );

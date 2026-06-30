@@ -42,6 +42,18 @@ function applyClass(resolved: Resolved) {
   if (resolved === "dark") root.classList.add("dark");
   else root.classList.remove("dark");
   root.style.colorScheme = resolved;
+  // Sync mobile browser chrome (status bar) so the visible UI matches.
+  try {
+    let meta = document.querySelector('meta[name="theme-color"]') as HTMLMetaElement | null;
+    if (!meta) {
+      meta = document.createElement("meta");
+      meta.name = "theme-color";
+      document.head.appendChild(meta);
+    }
+    meta.content = resolved === "dark" ? "#0b1220" : "#ffffff";
+  } catch {
+    /* ignore */
+  }
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {

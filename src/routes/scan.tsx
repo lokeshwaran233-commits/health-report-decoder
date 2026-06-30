@@ -7,7 +7,7 @@ import { Button } from "@/components/rx/Button";
 import { ModalityPicker } from "@/components/scan/ModalityPicker";
 import { LoadingScreen } from "@/components/results/LoadingScreen";
 import { analyzeScan } from "@/lib/scanAnalysis.functions";
-import { saveScan } from "@/lib/scanCloudSync.functions";
+
 import { scanStore } from "@/lib/scanStore";
 import { extractTextFromPDF } from "@/lib/pdfExtract";
 import { validateUploadedFile } from "@/lib/security/fileValidator";
@@ -126,7 +126,6 @@ function fileToBase64(file: File): Promise<{ b64: string; mime: string }> {
 function ScanPage() {
   const navigate = useNavigate();
   const analyze = useServerFn(analyzeScan);
-  const save = useServerFn(saveScan);
   const { user } = useAuth();
 
   const [consent, setConsent] = useState<boolean>(() => {

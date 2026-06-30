@@ -7,7 +7,7 @@ import { Button } from "@/components/rx/Button";
 import { ModalityPicker } from "@/components/scan/ModalityPicker";
 import { LoadingScreen } from "@/components/results/LoadingScreen";
 import { analyzeScan } from "@/lib/scanAnalysis.functions";
-import { saveScan } from "@/lib/scanCloudSync.functions";
+
 import { scanStore } from "@/lib/scanStore";
 import { extractTextFromPDF } from "@/lib/pdfExtract";
 import { validateUploadedFile } from "@/lib/security/fileValidator";
@@ -126,7 +126,6 @@ function fileToBase64(file: File): Promise<{ b64: string; mime: string }> {
 function ScanPage() {
   const navigate = useNavigate();
   const analyze = useServerFn(analyzeScan);
-  const save = useServerFn(saveScan);
   const { user } = useAuth();
 
   const [consent, setConsent] = useState<boolean>(() => {
@@ -265,21 +264,9 @@ function ScanPage() {
         return;
       }
 
-      let savedId: string | undefined;
-      try {
-        const saved = await save({ data: { result } });
-        savedId = saved.id;
-        result = { ...result, id: saved.id };
-      } catch (e) {
-        console.warn("[scan] cloud save failed", e);
-        toast.warning("Saved locally. Could not sync to your account.");
-      }
-
+      // History saving is paused — keep the result in memory only.
       scanStore.setLastResult(result);
-      void navigate({
-        to: "/scan-results",
-        search: savedId ? { id: savedId } : {},
-      });
+      void navigate({ to: "/scan-results", search: {} });
     } catch (e) {
       const raw = e instanceof Error ? e.message : "Something went wrong.";
       const msg = humanizeError(raw);

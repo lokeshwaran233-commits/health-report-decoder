@@ -3,9 +3,8 @@ import { useServerFn } from "@tanstack/react-start";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { analyzeReport } from "@/lib/analyze.functions";
-import { saveReport } from "@/lib/cloudSync.functions";
 import { uploadStore } from "@/lib/uploadStore";
-import { supabase } from "@/integrations/supabase/client";
+
 
 import type {
   AnalysisError,
@@ -39,8 +38,7 @@ const STATUS_ORDER: Record<Biomarker["status"], number> = {
 
 export function useReportAnalysis(): UseReportAnalysisReturn {
   const analyzeFn = useServerFn(analyzeReport);
-  const saveFn = useServerFn(saveReport);
-  const { i18n, t } = useTranslation();
+  const { i18n } = useTranslation();
   const [analysisResult, setResult] = useState<AnalysisResult | null>(null);
   const [analysisState, setState] = useState<AnalysisState>("idle");
   const [error, setError] = useState<AnalysisError | null>(null);
@@ -64,19 +62,11 @@ export function useReportAnalysis(): UseReportAnalysisReturn {
         setResult(result);
         uploadStore.setLastResult(result);
         setState("success");
+        // History saving is paused — no cloud sync, no localStorage. Result lives in memory only.
         if (!uploadStore.isSampleMode() && !uploadStore.isHistoryView()) {
-          toast.success(t("history.savedToast"));
-          // Best-effort cloud sync if signed in. Clone to a plain object so
-          // the serializer never sees non-enumerable/proxy props as undefined.
-          const payload = JSON.parse(JSON.stringify(result)) as AnalysisResult;
-          void supabase.auth.getSession().then(({ data }) => {
-            if (!data.session) return;
-            saveFn({ data: { result: payload } }).catch((err) => {
-              console.error("[saveReport] cloud sync failed", err);
-              /* silent; localStorage already has it */
-            });
-          });
+          toast.success("Analysis ready");
         }
+
 
       } catch (e) {
         const code =
@@ -92,7 +82,7 @@ export function useReportAnalysis(): UseReportAnalysisReturn {
         setState("error");
       }
     },
-    [analyzeFn, saveFn, i18n.language, t],
+    [analyzeFn, i18n.language],
   );
 
   const loadResult = useCallback((result: AnalysisResult) => {

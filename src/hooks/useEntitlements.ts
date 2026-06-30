@@ -37,14 +37,6 @@ export function canDecode(ent: Entitlements | null): {
   reason: "no-auth" | "quota-hit" | "ok";
 } {
   if (!ent) return { allowed: false, reason: "no-auth" };
-  // Plus / Pro have unlimited (quota stored as 0 in catalog; we trust plan_code).
-  if (ent.plan_code === "plus" || ent.plan_code === "pro") {
-    return { allowed: true, reason: "ok" };
-  }
-  // Free: 1 report per period, OR has credits.
-  if (ent.credit_balance > 0) return { allowed: true, reason: "ok" };
-  if (ent.plan_code === "free" && ent.reports_used_this_period < 1) {
-    return { allowed: true, reason: "ok" };
-  }
-  return { allowed: false, reason: "quota-hit" };
+  // Signed-in users have unlimited access regardless of plan.
+  return { allowed: true, reason: "ok" };
 }

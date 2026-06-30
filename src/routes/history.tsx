@@ -142,9 +142,10 @@ function HistoryPage() {
         <h1 className="text-[24px] font-semibold text-brand-dark">Your history</h1>
         <p className="mt-1 flex items-center gap-1.5 text-[13px] text-brand-muted">
           <Lock className="h-3.5 w-3.5" aria-hidden="true" />
-          {user ? "Synced to your account" : "Stored locally on this device only"}
+          History saving is paused — new analyses won't be stored here.
         </p>
       </div>
+
 
       <div className="inline-flex rounded-pill bg-brand-surface p-1 mb-6">
         <button

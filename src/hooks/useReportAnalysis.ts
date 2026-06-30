@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { analyzeReport } from "@/lib/analyze.functions";
 import { saveReport } from "@/lib/cloudSync.functions";
 import { uploadStore } from "@/lib/uploadStore";
-import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 
 
 import type {

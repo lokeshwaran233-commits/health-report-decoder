@@ -3,9 +3,8 @@ import { useServerFn } from "@tanstack/react-start";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { analyzeReport } from "@/lib/analyze.functions";
-import { saveReport } from "@/lib/cloudSync.functions";
 import { uploadStore } from "@/lib/uploadStore";
-import { supabase } from "@/integrations/supabase/client";
+
 
 import type {
   AnalysisError,
@@ -39,8 +38,7 @@ const STATUS_ORDER: Record<Biomarker["status"], number> = {
 
 export function useReportAnalysis(): UseReportAnalysisReturn {
   const analyzeFn = useServerFn(analyzeReport);
-  const saveFn = useServerFn(saveReport);
-  const { i18n, t } = useTranslation();
+  const { i18n } = useTranslation();
   const [analysisResult, setResult] = useState<AnalysisResult | null>(null);
   const [analysisState, setState] = useState<AnalysisState>("idle");
   const [error, setError] = useState<AnalysisError | null>(null);

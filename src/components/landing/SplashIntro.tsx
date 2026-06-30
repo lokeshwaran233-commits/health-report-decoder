@@ -5,14 +5,6 @@ const STORAGE_KEY = "rrx-splash-seen";
 
 type TargetRect = { top: number; left: number; size: number };
 
-function readInitialVisible(): boolean {
-  if (typeof window === "undefined") return true;
-  try {
-    return sessionStorage.getItem(STORAGE_KEY) !== "1";
-  } catch {
-    return true;
-  }
-}
 
 export function SplashIntro() {
   // Start "init" so SSR + first client render match (render nothing). The

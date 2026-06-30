@@ -3,7 +3,9 @@ import { useServerFn } from "@tanstack/react-start";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { analyzeReport } from "@/lib/analyze.functions";
+import { saveReport } from "@/lib/cloudSync.functions";
 import { uploadStore } from "@/lib/uploadStore";
+import { useAuth } from "@/hooks/useAuth";
 
 
 import type {
@@ -38,6 +40,8 @@ const STATUS_ORDER: Record<Biomarker["status"], number> = {
 
 export function useReportAnalysis(): UseReportAnalysisReturn {
   const analyzeFn = useServerFn(analyzeReport);
+  const saveReportFn = useServerFn(saveReport);
+  const { user } = useAuth();
   const { i18n } = useTranslation();
   const [analysisResult, setResult] = useState<AnalysisResult | null>(null);
   const [analysisState, setState] = useState<AnalysisState>("idle");
@@ -62,12 +66,18 @@ export function useReportAnalysis(): UseReportAnalysisReturn {
         setResult(result);
         uploadStore.setLastResult(result);
         setState("success");
-        // History saving is paused — no cloud sync, no localStorage. Result lives in memory only.
-        if (!uploadStore.isSampleMode() && !uploadStore.isHistoryView()) {
+        const isSample = uploadStore.isSampleMode() || uploadStore.isHistoryView();
+        if (!isSample) {
           toast.success("Analysis ready");
+          // Persist to the signed-in user's cloud history only.
+          if (user) {
+            try {
+              await saveReportFn({ data: { result } });
+            } catch (err) {
+              console.error("[saveReport] failed", err);
+            }
+          }
         }
-
-
       } catch (e) {
         const code =
           e && typeof e === "object" && "code" in e
@@ -82,7 +92,7 @@ export function useReportAnalysis(): UseReportAnalysisReturn {
         setState("error");
       }
     },
-    [analyzeFn, i18n.language],
+    [analyzeFn, saveReportFn, user, i18n.language],
   );
 
   const loadResult = useCallback((result: AnalysisResult) => {

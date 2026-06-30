@@ -265,21 +265,9 @@ function ScanPage() {
         return;
       }
 
-      let savedId: string | undefined;
-      try {
-        const saved = await save({ data: { result } });
-        savedId = saved.id;
-        result = { ...result, id: saved.id };
-      } catch (e) {
-        console.warn("[scan] cloud save failed", e);
-        toast.warning("Saved locally. Could not sync to your account.");
-      }
-
+      // History saving is paused — keep the result in memory only.
       scanStore.setLastResult(result);
-      void navigate({
-        to: "/scan-results",
-        search: savedId ? { id: savedId } : {},
-      });
+      void navigate({ to: "/scan-results", search: {} });
     } catch (e) {
       const raw = e instanceof Error ? e.message : "Something went wrong.";
       const msg = humanizeError(raw);

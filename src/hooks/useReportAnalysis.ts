@@ -3,7 +3,9 @@ import { useServerFn } from "@tanstack/react-start";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { analyzeReport } from "@/lib/analyze.functions";
+import { saveReport } from "@/lib/cloudSync.functions";
 import { uploadStore } from "@/lib/uploadStore";
+import { useAuth } from "@/hooks/useAuth";
 
 
 import type {

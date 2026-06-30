@@ -7,6 +7,7 @@ import { Button } from "@/components/rx/Button";
 import { ModalityPicker } from "@/components/scan/ModalityPicker";
 import { LoadingScreen } from "@/components/results/LoadingScreen";
 import { analyzeScan } from "@/lib/scanAnalysis.functions";
+import { saveScan } from "@/lib/scanCloudSync.functions";
 
 import { scanStore } from "@/lib/scanStore";
 import { extractTextFromPDF } from "@/lib/pdfExtract";
